@@ -76,13 +76,27 @@ class MainWindow:
         settings_frame = ttk.LabelFrame(main_frame, text="Настройки", padding="10")
         settings_frame.grid(row=1, column=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
+        # Тип преобразования
+        ttk.Label(settings_frame, text="Тип преобразования:").grid(row=0, column=0, sticky=tk.W)
+        self.transform_type_var = tk.StringVar(value="Логарифмическое")
+        transform_combo = ttk.Combobox(settings_frame, textvariable=self.transform_type_var, 
+                                      values=["Логарифмическое", "Степенное"], 
+                                      state="readonly", width=15)
+        transform_combo.grid(row=0, column=1, padx=(5, 0))
+        transform_combo.bind("<<ComboboxSelected>>", self.on_transform_type_change)
+        
+        # Гамма (для степенного преобразования) - скрыта по умолчанию
+        self.gamma_label = ttk.Label(settings_frame, text="Гамма γ:")
+        self.gamma_var = tk.StringVar(value="1.0")
+        self.gamma_entry = ttk.Entry(settings_frame, textvariable=self.gamma_var, width=15)
+        
         # Режим настройки коэффициента
-        ttk.Label(settings_frame, text="Режим:").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(settings_frame, text="Режим:").grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
         self.mode_var = tk.StringVar(value="Автоматически")
         mode_combo = ttk.Combobox(settings_frame, textvariable=self.mode_var, 
                                  values=["Автоматически", "Вручную"], 
                                  state="readonly", width=12)
-        mode_combo.grid(row=0, column=1, padx=(5, 0))
+        mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
         mode_combo.bind("<<ComboboxSelected>>", self.on_mode_change)
         
         # Коэффициент c (скрыт по умолчанию)
@@ -93,7 +107,7 @@ class MainWindow:
         # Кнопка применения
         self.apply_button = ttk.Button(settings_frame, text="Применить", 
                                       command=self.apply_transform)
-        self.apply_button.grid(row=2, column=0, columnspan=2, pady=(10, 0))
+        self.apply_button.grid(row=4, column=0, columnspan=2, pady=(10, 0))
         
         # Область отображения изображений
         display_frame = ttk.Frame(main_frame)
@@ -174,19 +188,53 @@ class MainWindow:
                 self.original_label.configure(image=display_image, text="")
                 self.original_label.image = display_image  # Сохраняем ссылку
     
+    def on_transform_type_change(self, event=None):
+        """Обрабатывает изменение типа преобразования."""
+        transform_type = self.transform_type_var.get()
+        
+        if transform_type == "Степенное":
+            # Для степенного преобразования режим влияет на отображение гаммы
+            self.on_mode_change()
+        else:
+            # Для логарифмического преобразования скрываем гамму
+            self.gamma_label.grid_remove()
+            self.gamma_entry.grid_remove()
+            # Показываем режим для коэффициента c
+            self.on_mode_change()
+    
     def on_mode_change(self, event=None):
-        """Обрабатывает изменение режима настройки коэффициента."""
+        """Обрабатывает изменение режима настройки."""
+        transform_type = self.transform_type_var.get()
         mode = self.mode_var.get()
         
-        if mode == "Вручную":
-            # Показываем поля для ручного ввода
-            self.c_label.grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
-            self.c_entry.grid(row=1, column=1, padx=(5, 0), pady=(5, 0))
-            self.c_var.set("1.0")
+        if transform_type == "Степенное":
+            # Для степенного преобразования
+            if mode == "Вручную":
+                # Показываем поле для гаммы под режимом
+                self.gamma_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+                self.gamma_entry.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
+                self.gamma_var.set("1.0")
+                # Скрываем поле для коэффициента c
+                self.c_label.grid_remove()
+                self.c_entry.grid_remove()
+            else:  # Автоматически
+                # Скрываем поле для гаммы
+                self.gamma_label.grid_remove()
+                self.gamma_entry.grid_remove()
+                # Скрываем поле для коэффициента c
+                self.c_label.grid_remove()
+                self.c_entry.grid_remove()
         else:
-            # Скрываем поля для ручного ввода
-            self.c_label.grid_remove()
-            self.c_entry.grid_remove()
+            # Для логарифмического преобразования
+            if mode == "Вручную":
+                # Показываем поле для коэффициента c
+                self.c_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+                self.c_entry.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
+                self.c_var.set("1.0")
+            else:
+                # Скрываем поле для коэффициента c
+                self.c_label.grid_remove()
+                self.c_entry.grid_remove()
     
     def apply_logarithmic_transform(self):
         """Применяет логарифмическое преобразование с автоматическим коэффициентом."""
@@ -209,13 +257,21 @@ class MainWindow:
             self.status_var.set("Ошибка применения преобразования")
     
     def apply_transform(self):
-        """Применяет логарифмическое преобразование в зависимости от выбранного режима."""
+        """Применяет преобразование в зависимости от выбранного типа и режима."""
         if self.image_processor.original_image is None:
             messagebox.showwarning("Предупреждение", "Сначала загрузите изображение")
             return
         
+        transform_type = self.transform_type_var.get()
         mode = self.mode_var.get()
         
+        if transform_type == "Логарифмическое":
+            self._apply_logarithmic_transform(mode)
+        else:  # Степенное
+            self._apply_power_transform(mode)
+    
+    def _apply_logarithmic_transform(self, mode: str):
+        """Применяет логарифмическое преобразование."""
         if mode == "Автоматически":
             # Используем автоматический режим
             self.status_var.set("Применение логарифмического преобразования (автоматический режим)...")
@@ -256,6 +312,53 @@ class MainWindow:
             except ValueError as e:
                 messagebox.showerror("Ошибка", f"Неверное значение коэффициента: {e}")
                 return
+    
+    def _apply_power_transform(self, mode: str):
+        """Применяет степенное преобразование."""
+        try:
+            if mode == "Автоматически":
+                # Автоматический режим - используем гамму по умолчанию (1.0)
+                gamma = 1.0
+                self.status_var.set("Применение степенного преобразования (автоматический режим)...")
+                self.root.update()
+                
+                if self.image_processor.apply_power_transform(gamma):
+                    self.display_processed_image()
+                    self.update_info()
+                    # Получаем информацию о коэффициенте
+                    info = self.image_processor.get_image_info()
+                    c_value = info.get('last_coefficient_c', 'неизвестно')
+                    self.status_var.set(f"Степенное преобразование применено (автоматический режим, γ={gamma}, c={c_value})")
+                else:
+                    messagebox.showerror("Ошибка", "Не удалось применить преобразование")
+                    self.status_var.set("Ошибка применения преобразования")
+            else:
+                # Ручной режим - получаем гамму от пользователя
+                gamma_value = self.gamma_var.get().strip()
+                if not gamma_value:
+                    raise ValueError("Введите значение гаммы")
+                
+                gamma = float(gamma_value)
+                if gamma <= 0:
+                    raise ValueError("Гамма должна быть положительной")
+                
+                self.status_var.set(f"Применение степенного преобразования (γ={gamma}, автоматический режим)...")
+                self.root.update()
+                
+                if self.image_processor.apply_power_transform(gamma):
+                    self.display_processed_image()
+                    self.update_info()
+                    # Получаем информацию о коэффициенте
+                    info = self.image_processor.get_image_info()
+                    c_value = info.get('last_coefficient_c', 'неизвестно')
+                    self.status_var.set(f"Степенное преобразование применено (γ={gamma}, c={c_value})")
+                else:
+                    messagebox.showerror("Ошибка", "Не удалось применить преобразование")
+                    self.status_var.set("Ошибка применения преобразования")
+                    
+        except ValueError as e:
+            messagebox.showerror("Ошибка", f"Неверное значение параметра: {e}")
+            return
     
     def display_processed_image(self):
         """Отображает обработанное изображение."""
@@ -309,6 +412,10 @@ class MainWindow:
             # Добавляем информацию о коэффициенте, если он был использован
             if 'last_coefficient_c' in info:
                 info_text += f"Коэффициент c: {info.get('last_coefficient_c')}\n"
+            
+            # Добавляем информацию о гамме, если она была использована
+            if 'last_gamma' in info:
+                info_text += f"Гамма γ: {info.get('last_gamma')}\n"
         else:
             info_text += "Изображение не загружено"
         
