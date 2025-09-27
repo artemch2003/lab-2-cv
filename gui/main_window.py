@@ -106,9 +106,25 @@ class MainWindow:
         self.c_entry = ttk.Entry(settings_frame, textvariable=self.c_var, width=15)
         
         # Пороговое значение (для бинарного преобразования) - скрыто по умолчанию
+        self.threshold_mode_label = ttk.Label(settings_frame, text="Режим порога:")
+        self.threshold_mode_var = tk.StringVar(value="Произвольный")
+        self.threshold_mode_combo = ttk.Combobox(settings_frame, textvariable=self.threshold_mode_var,
+                                                values=["Произвольный", "Заготовленные"], 
+                                                state="readonly", width=15)
+        self.threshold_mode_combo.bind("<<ComboboxSelected>>", self.on_threshold_mode_change)
+        
         self.threshold_label = ttk.Label(settings_frame, text="Порог:")
         self.threshold_var = tk.StringVar(value="128")
         self.threshold_entry = ttk.Entry(settings_frame, textvariable=self.threshold_var, width=15)
+        
+        # Заготовленные пороги
+        self.preset_label = ttk.Label(settings_frame, text="Заготовка:")
+        self.preset_var = tk.StringVar(value="Средний (128)")
+        self.preset_combo = ttk.Combobox(settings_frame, textvariable=self.preset_var,
+                                        values=["Очень светлый (64)", "Светлый (96)", "Средний (128)", 
+                                               "Темный (160)", "Очень темный (192)", "Максимально темный (224)"],
+                                        state="readonly", width=15)
+        self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_change)
         
         # Кнопка применения
         self.apply_button = ttk.Button(settings_frame, text="Применить", 
@@ -202,8 +218,13 @@ class MainWindow:
             # Для степенного преобразования показываем режим и влияет на отображение гаммы
             self.mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
             self.mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
+            # Скрываем элементы бинарного преобразования
             self.threshold_label.grid_remove()
             self.threshold_entry.grid_remove()
+            self.threshold_mode_label.grid_remove()
+            self.threshold_mode_combo.grid_remove()
+            self.preset_label.grid_remove()
+            self.preset_combo.grid_remove()
             self.on_mode_change()
         elif transform_type == "Бинарное":
             # Для бинарного преобразования скрываем гамму, режим и коэффициент c
@@ -214,15 +235,20 @@ class MainWindow:
             # Скрываем элементы режима
             self.mode_label.grid_remove()
             self.mode_combo.grid_remove()
-            # Показываем пороговое значение
-            self.threshold_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
-            self.threshold_entry.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
+            # Показываем элементы бинарного преобразования
+            self.threshold_mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+            self.threshold_mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
+            self.on_threshold_mode_change()
         else:
-            # Для логарифмического преобразования скрываем гамму и порог
+            # Для логарифмического преобразования скрываем гамму и элементы бинарного преобразования
             self.gamma_label.grid_remove()
             self.gamma_entry.grid_remove()
             self.threshold_label.grid_remove()
             self.threshold_entry.grid_remove()
+            self.threshold_mode_label.grid_remove()
+            self.threshold_mode_combo.grid_remove()
+            self.preset_label.grid_remove()
+            self.preset_combo.grid_remove()
             # Показываем режим для коэффициента c
             self.mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
             self.mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
@@ -388,14 +414,77 @@ class MainWindow:
             messagebox.showerror("Ошибка", f"Неверное значение параметра: {e}")
             return
     
+    def on_threshold_mode_change(self, event=None):
+        """Обрабатывает изменение режима порога для бинарного преобразования."""
+        mode = self.threshold_mode_var.get()
+        
+        if mode == "Произвольный":
+            # Показываем поле для ввода произвольного порога
+            self.threshold_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+            self.threshold_entry.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
+            # Скрываем заготовки
+            self.preset_label.grid_remove()
+            self.preset_combo.grid_remove()
+        else:  # Заготовленные
+            # Скрываем поле для произвольного порога
+            self.threshold_label.grid_remove()
+            self.threshold_entry.grid_remove()
+            # Показываем заготовки
+            self.preset_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+            self.preset_combo.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
+    
+    def on_preset_change(self, event=None):
+        """Обрабатывает изменение выбранной заготовки порога."""
+        preset = self.preset_var.get()
+        
+        # Извлекаем числовое значение из названия заготовки
+        if "Очень светлый" in preset:
+            threshold = 64
+        elif "Светлый" in preset:
+            threshold = 96
+        elif "Средний" in preset:
+            threshold = 128
+        elif "Темный" in preset:
+            threshold = 160
+        elif "Очень темный" in preset:
+            threshold = 192
+        elif "Максимально темный" in preset:
+            threshold = 224
+        else:
+            threshold = 128
+        
+        # Обновляем поле произвольного порога для отображения
+        self.threshold_var.set(str(threshold))
+    
     def _apply_binary_transform(self):
         """Применяет бинарное преобразование."""
         try:
-            threshold_value = self.threshold_var.get().strip()
-            if not threshold_value:
-                raise ValueError("Введите значение порога")
+            mode = self.threshold_mode_var.get()
             
-            threshold = float(threshold_value)
+            if mode == "Произвольный":
+                # Используем значение из поля ввода
+                threshold_value = self.threshold_var.get().strip()
+                if not threshold_value:
+                    raise ValueError("Введите значение порога")
+                threshold = float(threshold_value)
+            else:  # Заготовленные
+                # Используем значение из выбранной заготовки
+                preset = self.preset_var.get()
+                if "Очень светлый" in preset:
+                    threshold = 64
+                elif "Светлый" in preset:
+                    threshold = 96
+                elif "Средний" in preset:
+                    threshold = 128
+                elif "Темный" in preset:
+                    threshold = 160
+                elif "Очень темный" in preset:
+                    threshold = 192
+                elif "Максимально темный" in preset:
+                    threshold = 224
+                else:
+                    threshold = 128
+            
             if threshold < 0 or threshold > 255:
                 raise ValueError("Порог должен быть в диапазоне от 0 до 255")
             
