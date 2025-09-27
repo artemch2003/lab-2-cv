@@ -91,13 +91,14 @@ class MainWindow:
         self.gamma_entry = ttk.Entry(settings_frame, textvariable=self.gamma_var, width=15)
         
         # Режим настройки коэффициента
-        ttk.Label(settings_frame, text="Режим:").grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+        self.mode_label = ttk.Label(settings_frame, text="Режим:")
+        self.mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
         self.mode_var = tk.StringVar(value="Автоматически")
-        mode_combo = ttk.Combobox(settings_frame, textvariable=self.mode_var, 
-                                 values=["Автоматически", "Вручную"], 
-                                 state="readonly", width=12)
-        mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
-        mode_combo.bind("<<ComboboxSelected>>", self.on_mode_change)
+        self.mode_combo = ttk.Combobox(settings_frame, textvariable=self.mode_var, 
+                                      values=["Автоматически", "Вручную"], 
+                                      state="readonly", width=12)
+        self.mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
+        self.mode_combo.bind("<<ComboboxSelected>>", self.on_mode_change)
         
         # Коэффициент c (скрыт по умолчанию)
         self.c_label = ttk.Label(settings_frame, text="Коэффициент c:")
@@ -198,14 +199,21 @@ class MainWindow:
         transform_type = self.transform_type_var.get()
         
         if transform_type == "Степенное":
-            # Для степенного преобразования режим влияет на отображение гаммы
+            # Для степенного преобразования показываем режим и влияет на отображение гаммы
+            self.mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+            self.mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
+            self.threshold_label.grid_remove()
+            self.threshold_entry.grid_remove()
             self.on_mode_change()
         elif transform_type == "Бинарное":
-            # Для бинарного преобразования скрываем гамму и режим
+            # Для бинарного преобразования скрываем гамму, режим и коэффициент c
             self.gamma_label.grid_remove()
             self.gamma_entry.grid_remove()
             self.c_label.grid_remove()
             self.c_entry.grid_remove()
+            # Скрываем элементы режима
+            self.mode_label.grid_remove()
+            self.mode_combo.grid_remove()
             # Показываем пороговое значение
             self.threshold_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
             self.threshold_entry.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
@@ -216,6 +224,8 @@ class MainWindow:
             self.threshold_label.grid_remove()
             self.threshold_entry.grid_remove()
             # Показываем режим для коэффициента c
+            self.mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+            self.mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
             self.on_mode_change()
     
     def on_mode_change(self, event=None):
