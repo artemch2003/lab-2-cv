@@ -98,6 +98,8 @@ def run_demo():
         print(f"   Режим: {info.get('mode', 'Неизвестно')}")
         print(f"   Формат: {info.get('format', 'Неизвестно')}")
         print(f"   Обработано: {'Да' if info.get('has_processed', False) else 'Нет'}")
+        if 'last_coefficient_c' in info:
+            print(f"   Коэффициент c: {info.get('last_coefficient_c')}")
         
         print(f"\n📁 Созданные файлы:")
         print(f"   Исходное изображение: {demo_path}")

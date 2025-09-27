@@ -20,6 +20,7 @@ class ImageProcessor:
         self.original_image: Optional[Image.Image] = None
         self.processed_image: Optional[Image.Image] = None
         self.image_array: Optional[np.ndarray] = None
+        self.last_used_c: Optional[float] = None  # Последний использованный коэффициент
         
     def load_image(self, file_path: str) -> bool:
         """
@@ -110,6 +111,9 @@ class ImageProcessor:
             if c is None:
                 c = self._calculate_optimal_c(image_float)
             
+            # Сохраняем использованный коэффициент
+            self.last_used_c = c
+            
             logger.info(f"Применение логарифмического преобразования с коэффициентом c = {c}")
             
             # Применяем логарифмическое преобразование
@@ -168,9 +172,15 @@ class ImageProcessor:
         if self.original_image is None:
             return {}
         
-        return {
+        info = {
             'size': self.original_image.size,
             'mode': self.original_image.mode,
             'format': self.original_image.format,
             'has_processed': self.processed_image is not None
         }
+        
+        # Добавляем информацию о коэффициенте, если он был использован
+        if self.last_used_c is not None:
+            info['last_coefficient_c'] = round(self.last_used_c, 4)
+        
+        return info
