@@ -22,6 +22,7 @@ class ImageProcessor:
         self.image_array: Optional[np.ndarray] = None
         self.last_used_c: Optional[float] = None  # Последний использованный коэффициент
         self.last_used_gamma: Optional[float] = None  # Последнее использованное значение гаммы
+        self.last_used_threshold: Optional[float] = None  # Последнее использованное пороговое значение
         
     def load_image(self, file_path: str) -> bool:
         """
@@ -187,6 +188,47 @@ class ImageProcessor:
             logger.error(f"Ошибка при применении степенного преобразования: {e}")
             return False
     
+    def apply_binary_transform(self, threshold: float) -> bool:
+        """
+        Применяет бинарное преобразование к изображению.
+        
+        Args:
+            threshold: Пороговое значение для бинарного преобразования (0-255)
+            
+        Returns:
+            bool: True если преобразование успешно применено, False иначе
+        """
+        try:
+            if self.image_array is None:
+                logger.error("Изображение не загружено")
+                return False
+            
+            # Сохраняем использованное пороговое значение
+            self.last_used_threshold = threshold
+            
+            logger.info(f"Применение бинарного преобразования с порогом = {threshold}")
+            
+            # Конвертируем в grayscale если изображение цветное
+            if len(self.image_array.shape) == 3:
+                # Используем формулу для конвертации RGB в grayscale
+                gray_array = np.dot(self.image_array[...,:3], [0.2989, 0.5870, 0.1140])
+            else:
+                gray_array = self.image_array.copy()
+            
+            # Применяем бинарное преобразование
+            # Все пиксели выше порога становятся 255 (белые), ниже - 0 (черные)
+            binary_array = np.where(gray_array >= threshold, 255, 0).astype(np.uint8)
+            
+            # Создаем новое изображение
+            self.processed_image = Image.fromarray(binary_array, mode='L')
+            
+            logger.info("Бинарное преобразование успешно применено")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка при применении бинарного преобразования: {e}")
+            return False
+    
     def _calculate_optimal_c(self, image_array: np.ndarray) -> float:
         """
         Вычисляет оптимальный коэффициент c для логарифмического преобразования.
@@ -268,5 +310,9 @@ class ImageProcessor:
         # Добавляем информацию о гамме, если она была использована
         if self.last_used_gamma is not None:
             info['last_gamma'] = round(self.last_used_gamma, 4)
+        
+        # Добавляем информацию о пороговом значении, если оно было использовано
+        if self.last_used_threshold is not None:
+            info['last_threshold'] = round(self.last_used_threshold, 1)
         
         return info

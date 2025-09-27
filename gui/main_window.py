@@ -31,7 +31,7 @@ class MainWindow:
         
     def setup_window(self):
         """Настройка параметров окна."""
-        self.root.title("Обработка изображений - Логарифмическое преобразование")
+        self.root.title("Обработка изображений - Преобразования")
         self.root.geometry("800x600")
         self.root.minsize(600, 400)
         
@@ -66,7 +66,7 @@ class MainWindow:
         ttk.Button(control_frame, text="Загрузить изображение", 
                   command=self.load_image).grid(row=0, column=0, padx=(0, 10))
         
-        ttk.Button(control_frame, text="Применить логарифмическое преобразование", 
+        ttk.Button(control_frame, text="Применить преобразование", 
                   command=self.apply_transform).grid(row=0, column=1, padx=(0, 10))
         
         ttk.Button(control_frame, text="Сохранить результат", 
@@ -80,7 +80,7 @@ class MainWindow:
         ttk.Label(settings_frame, text="Тип преобразования:").grid(row=0, column=0, sticky=tk.W)
         self.transform_type_var = tk.StringVar(value="Логарифмическое")
         transform_combo = ttk.Combobox(settings_frame, textvariable=self.transform_type_var, 
-                                      values=["Логарифмическое", "Степенное"], 
+                                      values=["Логарифмическое", "Степенное", "Бинарное"], 
                                       state="readonly", width=15)
         transform_combo.grid(row=0, column=1, padx=(5, 0))
         transform_combo.bind("<<ComboboxSelected>>", self.on_transform_type_change)
@@ -103,6 +103,11 @@ class MainWindow:
         self.c_label = ttk.Label(settings_frame, text="Коэффициент c:")
         self.c_var = tk.StringVar(value="1.0")
         self.c_entry = ttk.Entry(settings_frame, textvariable=self.c_var, width=15)
+        
+        # Пороговое значение (для бинарного преобразования) - скрыто по умолчанию
+        self.threshold_label = ttk.Label(settings_frame, text="Порог:")
+        self.threshold_var = tk.StringVar(value="128")
+        self.threshold_entry = ttk.Entry(settings_frame, textvariable=self.threshold_var, width=15)
         
         # Кнопка применения
         self.apply_button = ttk.Button(settings_frame, text="Применить", 
@@ -195,10 +200,21 @@ class MainWindow:
         if transform_type == "Степенное":
             # Для степенного преобразования режим влияет на отображение гаммы
             self.on_mode_change()
-        else:
-            # Для логарифмического преобразования скрываем гамму
+        elif transform_type == "Бинарное":
+            # Для бинарного преобразования скрываем гамму и режим
             self.gamma_label.grid_remove()
             self.gamma_entry.grid_remove()
+            self.c_label.grid_remove()
+            self.c_entry.grid_remove()
+            # Показываем пороговое значение
+            self.threshold_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+            self.threshold_entry.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
+        else:
+            # Для логарифмического преобразования скрываем гамму и порог
+            self.gamma_label.grid_remove()
+            self.gamma_entry.grid_remove()
+            self.threshold_label.grid_remove()
+            self.threshold_entry.grid_remove()
             # Показываем режим для коэффициента c
             self.on_mode_change()
     
@@ -267,8 +283,10 @@ class MainWindow:
         
         if transform_type == "Логарифмическое":
             self._apply_logarithmic_transform(mode)
-        else:  # Степенное
+        elif transform_type == "Степенное":
             self._apply_power_transform(mode)
+        else:  # Бинарное
+            self._apply_binary_transform()
     
     def _apply_logarithmic_transform(self, mode: str):
         """Применяет логарифмическое преобразование."""
@@ -360,6 +378,32 @@ class MainWindow:
             messagebox.showerror("Ошибка", f"Неверное значение параметра: {e}")
             return
     
+    def _apply_binary_transform(self):
+        """Применяет бинарное преобразование."""
+        try:
+            threshold_value = self.threshold_var.get().strip()
+            if not threshold_value:
+                raise ValueError("Введите значение порога")
+            
+            threshold = float(threshold_value)
+            if threshold < 0 or threshold > 255:
+                raise ValueError("Порог должен быть в диапазоне от 0 до 255")
+            
+            self.status_var.set(f"Применение бинарного преобразования (порог={threshold})...")
+            self.root.update()
+            
+            if self.image_processor.apply_binary_transform(threshold):
+                self.display_processed_image()
+                self.update_info()
+                self.status_var.set(f"Бинарное преобразование применено (порог={threshold})")
+            else:
+                messagebox.showerror("Ошибка", "Не удалось применить преобразование")
+                self.status_var.set("Ошибка применения преобразования")
+                
+        except ValueError as e:
+            messagebox.showerror("Ошибка", f"Неверное значение порога: {e}")
+            return
+    
     def display_processed_image(self):
         """Отображает обработанное изображение."""
         if self.image_processor.processed_image:
@@ -416,6 +460,10 @@ class MainWindow:
             # Добавляем информацию о гамме, если она была использована
             if 'last_gamma' in info:
                 info_text += f"Гамма γ: {info.get('last_gamma')}\n"
+            
+            # Добавляем информацию о пороговом значении, если оно было использовано
+            if 'last_threshold' in info:
+                info_text += f"Порог: {info.get('last_threshold')}\n"
         else:
             info_text += "Изображение не загружено"
         
