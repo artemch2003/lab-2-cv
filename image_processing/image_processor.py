@@ -23,6 +23,7 @@ class ImageProcessor:
         self.last_used_c: Optional[float] = None  # Последний использованный коэффициент
         self.last_used_gamma: Optional[float] = None  # Последнее использованное значение гаммы
         self.last_used_threshold: Optional[float] = None  # Последнее использованное пороговое значение
+        self.last_brightness_range: Optional[dict] = None  # Последние параметры вырезания диапазона яркостей
         
     def load_image(self, file_path: str) -> bool:
         """
@@ -229,6 +230,69 @@ class ImageProcessor:
             logger.error(f"Ошибка при применении бинарного преобразования: {e}")
             return False
     
+    def apply_brightness_range_transform(self, min_brightness: float, max_brightness: float, 
+                                       outside_mode: str, constant_value: Optional[float] = None) -> bool:
+        """
+        Применяет вырезание диапазона яркостей к изображению.
+        
+        Args:
+            min_brightness: Минимальная яркость диапазона (0-255)
+            max_brightness: Максимальная яркость диапазона (0-255)
+            outside_mode: Режим обработки пикселей вне диапазона ("Константа" или "Исходное")
+            constant_value: Константное значение для пикселей вне диапазона (если режим "Константа")
+            
+        Returns:
+            bool: True если преобразование успешно применено, False иначе
+        """
+        try:
+            if self.image_array is None:
+                logger.error("Изображение не загружено")
+                return False
+            
+            # Сохраняем параметры вырезания диапазона
+            self.last_brightness_range = {
+                'min': min_brightness,
+                'max': max_brightness,
+                'mode': outside_mode,
+                'constant_value': constant_value
+            }
+            
+            logger.info(f"Применение вырезания диапазона яркостей: {min_brightness}-{max_brightness}, режим: {outside_mode}")
+            
+            # Конвертируем в grayscale если изображение цветное
+            if len(self.image_array.shape) == 3:
+                # Используем формулу для конвертации RGB в grayscale
+                gray_array = np.dot(self.image_array[...,:3], [0.2989, 0.5870, 0.1140])
+            else:
+                gray_array = self.image_array.copy()
+            
+            # Создаем маску для пикселей в диапазоне
+            in_range_mask = (gray_array >= min_brightness) & (gray_array <= max_brightness)
+            
+            # Создаем результирующий массив
+            result_array = gray_array.copy()
+            
+            if outside_mode == "Константа":
+                # Пиксели вне диапазона заменяем на константное значение
+                result_array[~in_range_mask] = constant_value
+            else:  # "Исходное"
+                # Пиксели вне диапазона остаются в исходном виде
+                # Пиксели в диапазоне остаются без изменений
+                pass  # result_array уже содержит исходные значения
+            
+            # Конвертируем в uint8
+            result_array = result_array.astype(np.uint8)
+            
+            # Создаем новое изображение
+            self.processed_image = Image.fromarray(result_array, mode='L')
+            
+            logger.info("Вырезание диапазона яркостей успешно применено")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка при применении вырезания диапазона яркостей: {e}")
+            return False
+    
     def _calculate_optimal_c(self, image_array: np.ndarray) -> float:
         """
         Вычисляет оптимальный коэффициент c для логарифмического преобразования.
@@ -314,5 +378,14 @@ class ImageProcessor:
         # Добавляем информацию о пороговом значении, если оно было использовано
         if self.last_used_threshold is not None:
             info['last_threshold'] = round(self.last_used_threshold, 1)
+        
+        # Добавляем информацию о вырезании диапазона яркостей, если оно было использовано
+        if self.last_brightness_range is not None:
+            range_info = self.last_brightness_range.copy()
+            range_info['min'] = round(range_info['min'], 1)
+            range_info['max'] = round(range_info['max'], 1)
+            if range_info.get('constant_value') is not None:
+                range_info['constant_value'] = round(range_info['constant_value'], 1)
+            info['last_brightness_range'] = range_info
         
         return info

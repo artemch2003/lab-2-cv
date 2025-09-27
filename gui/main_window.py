@@ -80,7 +80,7 @@ class MainWindow:
         ttk.Label(settings_frame, text="Тип преобразования:").grid(row=0, column=0, sticky=tk.W)
         self.transform_type_var = tk.StringVar(value="Логарифмическое")
         transform_combo = ttk.Combobox(settings_frame, textvariable=self.transform_type_var, 
-                                      values=["Логарифмическое", "Степенное", "Бинарное"], 
+                                      values=["Логарифмическое", "Степенное", "Бинарное", "Вырезание диапазона яркостей"], 
                                       state="readonly", width=15)
         transform_combo.grid(row=0, column=1, padx=(5, 0))
         transform_combo.bind("<<ComboboxSelected>>", self.on_transform_type_change)
@@ -126,10 +126,30 @@ class MainWindow:
                                         state="readonly", width=15)
         self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_change)
         
+        # Элементы для вырезания диапазона яркостей
+        self.min_brightness_label = ttk.Label(settings_frame, text="Мин. яркость:")
+        self.min_brightness_var = tk.StringVar(value="0")
+        self.min_brightness_entry = ttk.Entry(settings_frame, textvariable=self.min_brightness_var, width=15)
+        
+        self.max_brightness_label = ttk.Label(settings_frame, text="Макс. яркость:")
+        self.max_brightness_var = tk.StringVar(value="255")
+        self.max_brightness_entry = ttk.Entry(settings_frame, textvariable=self.max_brightness_var, width=15)
+        
+        self.outside_mode_label = ttk.Label(settings_frame, text="Режим вне диапазона:")
+        self.outside_mode_var = tk.StringVar(value="Константа")
+        self.outside_mode_combo = ttk.Combobox(settings_frame, textvariable=self.outside_mode_var,
+                                             values=["Константа", "Исходное"], 
+                                             state="readonly", width=15)
+        self.outside_mode_combo.bind("<<ComboboxSelected>>", self.on_outside_mode_change)
+        
+        self.constant_value_label = ttk.Label(settings_frame, text="Константа:")
+        self.constant_value_var = tk.StringVar(value="0")
+        self.constant_value_entry = ttk.Entry(settings_frame, textvariable=self.constant_value_var, width=15)
+        
         # Кнопка применения
         self.apply_button = ttk.Button(settings_frame, text="Применить", 
                                       command=self.apply_transform)
-        self.apply_button.grid(row=4, column=0, columnspan=2, pady=(10, 0))
+        self.apply_button.grid(row=6, column=0, columnspan=2, pady=(10, 0))
         
         # Область отображения изображений
         display_frame = ttk.Frame(main_frame)
@@ -225,7 +245,18 @@ class MainWindow:
             self.threshold_mode_combo.grid_remove()
             self.preset_label.grid_remove()
             self.preset_combo.grid_remove()
+            # Скрываем элементы вырезания диапазона
+            self.min_brightness_label.grid_remove()
+            self.min_brightness_entry.grid_remove()
+            self.max_brightness_label.grid_remove()
+            self.max_brightness_entry.grid_remove()
+            self.outside_mode_label.grid_remove()
+            self.outside_mode_combo.grid_remove()
+            self.constant_value_label.grid_remove()
+            self.constant_value_entry.grid_remove()
             self.on_mode_change()
+            # Возвращаем кнопку "Применить" в стандартную позицию
+            self.apply_button.grid(row=6, column=0, columnspan=2, pady=(10, 0))
         elif transform_type == "Бинарное":
             # Для бинарного преобразования скрываем гамму, режим и коэффициент c
             self.gamma_label.grid_remove()
@@ -235,10 +266,45 @@ class MainWindow:
             # Скрываем элементы режима
             self.mode_label.grid_remove()
             self.mode_combo.grid_remove()
+            # Скрываем элементы вырезания диапазона
+            self.min_brightness_label.grid_remove()
+            self.min_brightness_entry.grid_remove()
+            self.max_brightness_label.grid_remove()
+            self.max_brightness_entry.grid_remove()
+            self.outside_mode_label.grid_remove()
+            self.outside_mode_combo.grid_remove()
+            self.constant_value_label.grid_remove()
+            self.constant_value_entry.grid_remove()
             # Показываем элементы бинарного преобразования
             self.threshold_mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
             self.threshold_mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
             self.on_threshold_mode_change()
+            # Возвращаем кнопку "Применить" в стандартную позицию
+            self.apply_button.grid(row=6, column=0, columnspan=2, pady=(10, 0))
+        elif transform_type == "Вырезание диапазона яркостей":
+            # Для вырезания диапазона скрываем все остальные элементы
+            self.gamma_label.grid_remove()
+            self.gamma_entry.grid_remove()
+            self.c_label.grid_remove()
+            self.c_entry.grid_remove()
+            self.mode_label.grid_remove()
+            self.mode_combo.grid_remove()
+            self.threshold_label.grid_remove()
+            self.threshold_entry.grid_remove()
+            self.threshold_mode_label.grid_remove()
+            self.threshold_mode_combo.grid_remove()
+            self.preset_label.grid_remove()
+            self.preset_combo.grid_remove()
+            # Показываем элементы вырезания диапазона
+            self.min_brightness_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+            self.min_brightness_entry.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
+            self.max_brightness_label.grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+            self.max_brightness_entry.grid(row=3, column=1, padx=(5, 0), pady=(5, 0))
+            self.outside_mode_label.grid(row=4, column=0, sticky=tk.W, pady=(5, 0))
+            self.outside_mode_combo.grid(row=4, column=1, padx=(5, 0), pady=(5, 0))
+            self.on_outside_mode_change()
+            # Перемещаем кнопку "Применить" в строку 7 для вырезания диапазона
+            self.apply_button.grid(row=7, column=0, columnspan=2, pady=(10, 0))
         else:
             # Для логарифмического преобразования скрываем гамму и элементы бинарного преобразования
             self.gamma_label.grid_remove()
@@ -249,10 +315,21 @@ class MainWindow:
             self.threshold_mode_combo.grid_remove()
             self.preset_label.grid_remove()
             self.preset_combo.grid_remove()
+            # Скрываем элементы вырезания диапазона
+            self.min_brightness_label.grid_remove()
+            self.min_brightness_entry.grid_remove()
+            self.max_brightness_label.grid_remove()
+            self.max_brightness_entry.grid_remove()
+            self.outside_mode_label.grid_remove()
+            self.outside_mode_combo.grid_remove()
+            self.constant_value_label.grid_remove()
+            self.constant_value_entry.grid_remove()
             # Показываем режим для коэффициента c
             self.mode_label.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
             self.mode_combo.grid(row=2, column=1, padx=(5, 0), pady=(5, 0))
             self.on_mode_change()
+            # Возвращаем кнопку "Применить" в стандартную позицию
+            self.apply_button.grid(row=6, column=0, columnspan=2, pady=(10, 0))
     
     def on_mode_change(self, event=None):
         """Обрабатывает изменение режима настройки."""
@@ -321,8 +398,10 @@ class MainWindow:
             self._apply_logarithmic_transform(mode)
         elif transform_type == "Степенное":
             self._apply_power_transform(mode)
-        else:  # Бинарное
+        elif transform_type == "Бинарное":
             self._apply_binary_transform()
+        else:  # Вырезание диапазона яркостей
+            self._apply_brightness_range_transform()
     
     def _apply_logarithmic_transform(self, mode: str):
         """Применяет логарифмическое преобразование."""
@@ -456,6 +535,23 @@ class MainWindow:
         # Обновляем поле произвольного порога для отображения
         self.threshold_var.set(str(threshold))
     
+    def on_outside_mode_change(self, event=None):
+        """Обрабатывает изменение режима обработки пикселей вне диапазона."""
+        mode = self.outside_mode_var.get()
+        
+        if mode == "Константа":
+            # Показываем поле для константного значения
+            self.constant_value_label.grid(row=5, column=0, sticky=tk.W, pady=(5, 0))
+            self.constant_value_entry.grid(row=5, column=1, padx=(5, 0), pady=(5, 0))
+            # Перемещаем кнопку "Применить" в строку 7, чтобы избежать наложения
+            self.apply_button.grid(row=7, column=0, columnspan=2, pady=(10, 0))
+        else:  # Исходное
+            # Скрываем поле для константного значения
+            self.constant_value_label.grid_remove()
+            self.constant_value_entry.grid_remove()
+            # Возвращаем кнопку "Применить" в строку 6
+            self.apply_button.grid(row=6, column=0, columnspan=2, pady=(10, 0))
+    
     def _apply_binary_transform(self):
         """Применяет бинарное преобразование."""
         try:
@@ -501,6 +597,53 @@ class MainWindow:
                 
         except ValueError as e:
             messagebox.showerror("Ошибка", f"Неверное значение порога: {e}")
+            return
+    
+    def _apply_brightness_range_transform(self):
+        """Применяет вырезание диапазона яркостей."""
+        try:
+            # Получаем значения диапазона
+            min_brightness_value = self.min_brightness_var.get().strip()
+            max_brightness_value = self.max_brightness_var.get().strip()
+            
+            if not min_brightness_value or not max_brightness_value:
+                raise ValueError("Введите значения минимальной и максимальной яркости")
+            
+            min_brightness = float(min_brightness_value)
+            max_brightness = float(max_brightness_value)
+            
+            if min_brightness < 0 or min_brightness > 255:
+                raise ValueError("Минимальная яркость должна быть в диапазоне от 0 до 255")
+            if max_brightness < 0 or max_brightness > 255:
+                raise ValueError("Максимальная яркость должна быть в диапазоне от 0 до 255")
+            if min_brightness >= max_brightness:
+                raise ValueError("Минимальная яркость должна быть меньше максимальной")
+            
+            # Получаем режим обработки пикселей вне диапазона
+            outside_mode = self.outside_mode_var.get()
+            constant_value = None
+            
+            if outside_mode == "Константа":
+                constant_value_str = self.constant_value_var.get().strip()
+                if not constant_value_str:
+                    raise ValueError("Введите значение константы")
+                constant_value = float(constant_value_str)
+                if constant_value < 0 or constant_value > 255:
+                    raise ValueError("Константа должна быть в диапазоне от 0 до 255")
+            
+            self.status_var.set(f"Применение вырезания диапазона яркостей ({min_brightness}-{max_brightness})...")
+            self.root.update()
+            
+            if self.image_processor.apply_brightness_range_transform(min_brightness, max_brightness, outside_mode, constant_value):
+                self.display_processed_image()
+                self.update_info()
+                self.status_var.set(f"Вырезание диапазона яркостей применено ({min_brightness}-{max_brightness})")
+            else:
+                messagebox.showerror("Ошибка", "Не удалось применить преобразование")
+                self.status_var.set("Ошибка применения преобразования")
+                
+        except ValueError as e:
+            messagebox.showerror("Ошибка", f"Неверные параметры: {e}")
             return
     
     def display_processed_image(self):
@@ -563,6 +706,14 @@ class MainWindow:
             # Добавляем информацию о пороговом значении, если оно было использовано
             if 'last_threshold' in info:
                 info_text += f"Порог: {info.get('last_threshold')}\n"
+            
+            # Добавляем информацию о вырезании диапазона яркостей, если оно было использовано
+            if 'last_brightness_range' in info:
+                range_info = info.get('last_brightness_range')
+                info_text += f"Диапазон яркостей: {range_info['min']}-{range_info['max']}\n"
+                info_text += f"Режим вне диапазона: {range_info['mode']}\n"
+                if range_info.get('constant_value') is not None:
+                    info_text += f"Константа: {range_info['constant_value']}\n"
         else:
             info_text += "Изображение не загружено"
         
