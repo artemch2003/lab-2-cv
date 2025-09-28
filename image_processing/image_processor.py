@@ -223,6 +223,34 @@ class ImageProcessor:
             logger.error(f"Ошибка при применении преобразования {transform_name}: {e}")
             return False
     
+    def apply_custom_transform(self, transform, **kwargs) -> bool:
+        """
+        Применяет пользовательское преобразование к изображению.
+        
+        Args:
+            transform: Объект преобразования
+            **kwargs: Параметры преобразования
+            
+        Returns:
+            bool: True если преобразование успешно применено, False иначе
+        """
+        try:
+            if not self.image_manager.has_original_image():
+                logger.error("Изображение не загружено")
+                return False
+            
+            # Применяем пользовательское преобразование
+            processed_array = transform.apply(self.image_manager.image_array, **kwargs)
+            
+            # Устанавливаем обработанное изображение
+            self.image_manager.set_processed_image(processed_array)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка при применении пользовательского преобразования: {e}")
+            return False
+    
     def get_image_info(self) -> dict:
         """
         Возвращает информацию об изображении.

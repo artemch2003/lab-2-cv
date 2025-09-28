@@ -65,6 +65,20 @@ class ImageProcessorInterface(ABC):
         pass
     
     @abstractmethod
+    def apply_custom_transform(self, transform, **kwargs) -> bool:
+        """
+        Применяет пользовательское преобразование к изображению.
+        
+        Args:
+            transform: Объект преобразования
+            **kwargs: Параметры преобразования
+            
+        Returns:
+            bool: True если преобразование успешно применено, False иначе
+        """
+        pass
+    
+    @abstractmethod
     def get_image_info(self) -> Dict[str, Any]:
         """
         Возвращает информацию об изображении.

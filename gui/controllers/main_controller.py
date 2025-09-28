@@ -119,6 +119,9 @@ class MainController:
                 success = self._apply_binary_transform(parameters)
             elif transform_type == "Вырезание диапазона яркостей":
                 success = self._apply_brightness_range_transform(parameters)
+            elif transform_type in ["Прямоугольный фильтр 3x3", "Прямоугольный фильтр 5x5", 
+                                  "Медианный фильтр 3x3", "Медианный фильтр 5x5"]:
+                success = self._apply_smoothing_filter(parameters)
             
             if success:
                 self._update_image_display()
@@ -170,6 +173,21 @@ class MainController:
         return self.image_processor.apply_brightness_range_transform(
             min_brightness, max_brightness, outside_mode, constant_value
         )
+    
+    def _apply_smoothing_filter(self, parameters: Dict[str, Any]) -> bool:
+        """Применяет фильтр сглаживания."""
+        transform_type = parameters.get('transform_type')
+        kernel_size = parameters.get('kernel_size', 3)
+        
+        # Используем фабрику для создания фильтра
+        from image_processing.factories.transform_factory import TransformFactory
+        
+        try:
+            filter_transform = TransformFactory.create_transform(transform_type)
+            return self.image_processor.apply_custom_transform(filter_transform, kernel_size=kernel_size)
+        except Exception as e:
+            logger.error(f"Ошибка при применении фильтра сглаживания: {e}")
+            return False
     
     def get_image_for_display(self, image_type: str = "original"):
         """

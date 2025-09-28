@@ -64,6 +64,10 @@ class ModernStyles:
                            background=self.colors['bg_secondary'],
                            foreground=self.colors['text_primary'],
                            font=('Segoe UI', 10, 'bold'))
+        
+        # Дополнительные стили для LabelFrame
+        self.style.configure('Modern.TLabelFrame.Border',
+                           background=self.colors['border'])
     
     def _setup_label_styles(self):
         """Настраивает стили меток."""
