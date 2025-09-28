@@ -3,11 +3,11 @@
 Содержит класс ImageProcessor для работы с изображениями.
 """
 
-import math
-import numpy as np
 from typing import Tuple, Optional
-from PIL import Image, ImageTk
 import logging
+
+from .image_manager import ImageManager
+from .transform_manager import TransformManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +17,9 @@ class ImageProcessor:
     
     def __init__(self):
         """Инициализация процессора изображений."""
-        self.original_image: Optional[Image.Image] = None
-        self.processed_image: Optional[Image.Image] = None
-        self.image_array: Optional[np.ndarray] = None
-        self.last_used_c: Optional[float] = None  # Последний использованный коэффициент
-        self.last_used_gamma: Optional[float] = None  # Последнее использованное значение гаммы
-        self.last_used_threshold: Optional[float] = None  # Последнее использованное пороговое значение
-        self.last_brightness_range: Optional[dict] = None  # Последние параметры вырезания диапазона яркостей
-        
+        self.image_manager = ImageManager()
+        self.transform_manager = TransformManager()
+    
     def load_image(self, file_path: str) -> bool:
         """
         Загружает изображение из файла.
@@ -35,14 +30,7 @@ class ImageProcessor:
         Returns:
             bool: True если изображение успешно загружено, False иначе
         """
-        try:
-            self.original_image = Image.open(file_path)
-            self.image_array = np.array(self.original_image)
-            logger.info(f"Изображение успешно загружено: {file_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Ошибка при загрузке изображения: {e}")
-            return False
+        return self.image_manager.load_image(file_path)
     
     def save_image(self, file_path: str) -> bool:
         """
@@ -54,19 +42,9 @@ class ImageProcessor:
         Returns:
             bool: True если изображение успешно сохранено, False иначе
         """
-        try:
-            if self.processed_image is None:
-                logger.warning("Нет обработанного изображения для сохранения")
-                return False
-                
-            self.processed_image.save(file_path)
-            logger.info(f"Изображение успешно сохранено: {file_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Ошибка при сохранении изображения: {e}")
-            return False
+        return self.image_manager.save_image(file_path)
     
-    def get_image_for_display(self, image: Image.Image, max_size: Tuple[int, int] = (400, 400)) -> ImageTk.PhotoImage:
+    def get_image_for_display(self, image, max_size: Tuple[int, int] = (400, 400)):
         """
         Подготавливает изображение для отображения в GUI.
         
@@ -77,15 +55,7 @@ class ImageProcessor:
         Returns:
             ImageTk.PhotoImage: Изображение готовое для отображения в tkinter
         """
-        try:
-            # Изменяем размер изображения для отображения
-            display_image = image.copy()
-            display_image.thumbnail(max_size, Image.Resampling.LANCZOS)
-            
-            return ImageTk.PhotoImage(display_image)
-        except Exception as e:
-            logger.error(f"Ошибка при подготовке изображения для отображения: {e}")
-            return None
+        return self.image_manager.get_image_for_display(image, max_size)
     
     def apply_logarithmic_transform(self, c: Optional[float] = None) -> bool:
         """
@@ -99,38 +69,20 @@ class ImageProcessor:
             bool: True если преобразование успешно применено, False иначе
         """
         try:
-            if self.image_array is None:
+            if not self.image_manager.has_original_image():
                 logger.error("Изображение не загружено")
                 return False
             
-            # Конвертируем в float для точных вычислений
-            image_float = self.image_array.astype(np.float64)
+            # Применяем преобразование
+            processed_array = self.transform_manager.apply_transform(
+                "Логарифмическое", 
+                self.image_manager.image_array, 
+                c=c
+            )
             
-            # Нормализуем значения в диапазон [0, 1]
-            if image_float.max() > 1.0:
-                image_float = image_float / 255.0
+            # Устанавливаем обработанное изображение
+            self.image_manager.set_processed_image(processed_array)
             
-            # Вычисляем коэффициент c если не задан
-            if c is None:
-                c = self._calculate_optimal_c(image_float)
-            
-            # Сохраняем использованный коэффициент
-            self.last_used_c = c
-            
-            logger.info(f"Применение логарифмического преобразования с коэффициентом c = {c}")
-            
-            # Применяем логарифмическое преобразование
-            # Формула: s = c * log(1 + r), где r - исходное значение, s - результат
-            processed_array = c * np.log(1 + image_float)
-            
-            # Нормализуем результат обратно в диапазон [0, 255]
-            processed_array = np.clip(processed_array * 255, 0, 255)
-            processed_array = processed_array.astype(np.uint8)
-            
-            # Создаем новое изображение
-            self.processed_image = Image.fromarray(processed_array)
-            
-            logger.info("Логарифмическое преобразование успешно применено")
             return True
             
         except Exception as e:
@@ -150,39 +102,20 @@ class ImageProcessor:
             bool: True если преобразование успешно применено, False иначе
         """
         try:
-            if self.image_array is None:
+            if not self.image_manager.has_original_image():
                 logger.error("Изображение не загружено")
                 return False
             
-            # Конвертируем в float для точных вычислений
-            image_float = self.image_array.astype(np.float64)
+            # Применяем преобразование
+            processed_array = self.transform_manager.apply_transform(
+                "Степенное", 
+                self.image_manager.image_array, 
+                gamma=gamma, c=c
+            )
             
-            # Нормализуем значения в диапазон [0, 1]
-            if image_float.max() > 1.0:
-                image_float = image_float / 255.0
+            # Устанавливаем обработанное изображение
+            self.image_manager.set_processed_image(processed_array)
             
-            # Вычисляем коэффициент c если не задан
-            if c is None:
-                c = self._calculate_optimal_c_power(image_float, gamma)
-            
-            # Сохраняем использованные параметры
-            self.last_used_c = c
-            self.last_used_gamma = gamma
-            
-            logger.info(f"Применение степенного преобразования с гаммой γ = {gamma} и коэффициентом c = {c}")
-            
-            # Применяем степенное преобразование
-            # Формула: s = c * r^γ, где r - исходное значение, s - результат, γ - гамма
-            processed_array = c * np.power(image_float, gamma)
-            
-            # Нормализуем результат обратно в диапазон [0, 255]
-            processed_array = np.clip(processed_array * 255, 0, 255)
-            processed_array = processed_array.astype(np.uint8)
-            
-            # Создаем новое изображение
-            self.processed_image = Image.fromarray(processed_array)
-            
-            logger.info("Степенное преобразование успешно применено")
             return True
             
         except Exception as e:
@@ -200,30 +133,20 @@ class ImageProcessor:
             bool: True если преобразование успешно применено, False иначе
         """
         try:
-            if self.image_array is None:
+            if not self.image_manager.has_original_image():
                 logger.error("Изображение не загружено")
                 return False
             
-            # Сохраняем использованное пороговое значение
-            self.last_used_threshold = threshold
+            # Применяем преобразование
+            processed_array = self.transform_manager.apply_transform(
+                "Бинарное", 
+                self.image_manager.image_array, 
+                threshold=threshold
+            )
             
-            logger.info(f"Применение бинарного преобразования с порогом = {threshold}")
+            # Устанавливаем обработанное изображение
+            self.image_manager.set_processed_image(processed_array)
             
-            # Конвертируем в grayscale если изображение цветное
-            if len(self.image_array.shape) == 3:
-                # Используем формулу для конвертации RGB в grayscale
-                gray_array = np.dot(self.image_array[...,:3], [0.2989, 0.5870, 0.1140])
-            else:
-                gray_array = self.image_array.copy()
-            
-            # Применяем бинарное преобразование
-            # Все пиксели выше порога становятся 255 (белые), ниже - 0 (черные)
-            binary_array = np.where(gray_array >= threshold, 255, 0).astype(np.uint8)
-            
-            # Создаем новое изображение
-            self.processed_image = Image.fromarray(binary_array, mode='L')
-            
-            logger.info("Бинарное преобразование успешно применено")
             return True
             
         except Exception as e:
@@ -245,110 +168,60 @@ class ImageProcessor:
             bool: True если преобразование успешно применено, False иначе
         """
         try:
-            if self.image_array is None:
+            if not self.image_manager.has_original_image():
                 logger.error("Изображение не загружено")
                 return False
             
-            # Сохраняем параметры вырезания диапазона
-            self.last_brightness_range = {
-                'min': min_brightness,
-                'max': max_brightness,
-                'mode': outside_mode,
-                'constant_value': constant_value
-            }
+            # Применяем преобразование
+            processed_array = self.transform_manager.apply_transform(
+                "Вырезание диапазона яркостей", 
+                self.image_manager.image_array, 
+                min_brightness=min_brightness,
+                max_brightness=max_brightness,
+                outside_mode=outside_mode,
+                constant_value=constant_value
+            )
             
-            logger.info(f"Применение вырезания диапазона яркостей: {min_brightness}-{max_brightness}, режим: {outside_mode}")
+            # Устанавливаем обработанное изображение
+            self.image_manager.set_processed_image(processed_array)
             
-            # Конвертируем в grayscale если изображение цветное
-            if len(self.image_array.shape) == 3:
-                # Используем формулу для конвертации RGB в grayscale
-                gray_array = np.dot(self.image_array[...,:3], [0.2989, 0.5870, 0.1140])
-            else:
-                gray_array = self.image_array.copy()
-            
-            # Создаем маску для пикселей в диапазоне
-            in_range_mask = (gray_array >= min_brightness) & (gray_array <= max_brightness)
-            
-            # Создаем результирующий массив
-            result_array = gray_array.copy()
-            
-            if outside_mode == "Константа":
-                # Пиксели вне диапазона заменяем на константное значение
-                result_array[~in_range_mask] = constant_value
-            else:  # "Исходное"
-                # Пиксели вне диапазона остаются в исходном виде
-                # Пиксели в диапазоне остаются без изменений
-                pass  # result_array уже содержит исходные значения
-            
-            # Конвертируем в uint8
-            result_array = result_array.astype(np.uint8)
-            
-            # Создаем новое изображение
-            self.processed_image = Image.fromarray(result_array, mode='L')
-            
-            logger.info("Вырезание диапазона яркостей успешно применено")
             return True
             
         except Exception as e:
             logger.error(f"Ошибка при применении вырезания диапазона яркостей: {e}")
             return False
     
-    def _calculate_optimal_c(self, image_array: np.ndarray) -> float:
+    def apply_transform(self, transform_name: str, **kwargs) -> bool:
         """
-        Вычисляет оптимальный коэффициент c для логарифмического преобразования.
+        Применяет указанное преобразование к изображению.
         
         Args:
-            image_array: Массив изображения в формате float [0, 1]
+            transform_name: Название преобразования
+            **kwargs: Параметры преобразования
             
         Returns:
-            float: Оптимальный коэффициент c
+            bool: True если преобразование успешно применено, False иначе
         """
         try:
-            # Находим максимальное значение в изображении
-            max_value = np.max(image_array)
+            if not self.image_manager.has_original_image():
+                logger.error("Изображение не загружено")
+                return False
             
-            # Вычисляем коэффициент c так, чтобы максимальное значение
-            # после преобразования было равно 1.0
-            # c * log(1 + max_value) = 1.0
-            # c = 1.0 / log(1 + max_value)
-            c = 1.0 / math.log(1 + max_value)
+            # Применяем преобразование
+            processed_array = self.transform_manager.apply_transform(
+                transform_name, 
+                self.image_manager.image_array, 
+                **kwargs
+            )
             
-            logger.info(f"Вычислен оптимальный коэффициент c = {c}")
-            return c
+            # Устанавливаем обработанное изображение
+            self.image_manager.set_processed_image(processed_array)
             
-        except Exception as e:
-            logger.error(f"Ошибка при вычислении коэффициента c: {e}")
-            # Возвращаем значение по умолчанию
-            return 1.0
-    
-    def _calculate_optimal_c_power(self, image_array: np.ndarray, gamma: float) -> float:
-        """
-        Вычисляет оптимальный коэффициент c для степенного преобразования.
-        
-        Args:
-            image_array: Массив изображения в формате float [0, 1]
-            gamma: Значение гаммы для степенного преобразования
-            
-        Returns:
-            float: Оптимальный коэффициент c
-        """
-        try:
-            # Находим максимальное значение в изображении
-            max_value = np.max(image_array)
-            
-            # Вычисляем коэффициент c так, чтобы максимальное значение
-            # после преобразования было равно 1.0
-            # c * max_value^γ = 1.0
-            # c = 1.0 / (max_value^γ)
-            c = 1.0 / (max_value ** gamma)
-            
-            logger.info(f"Вычислен оптимальный коэффициент c = {c} для гаммы γ = {gamma}")
-            return c
+            return True
             
         except Exception as e:
-            logger.error(f"Ошибка при вычислении коэффициента c для степенного преобразования: {e}")
-            # Возвращаем значение по умолчанию
-            return 1.0
+            logger.error(f"Ошибка при применении преобразования {transform_name}: {e}")
+            return False
     
     def get_image_info(self) -> dict:
         """
@@ -357,35 +230,27 @@ class ImageProcessor:
         Returns:
             dict: Словарь с информацией об изображении
         """
-        if self.original_image is None:
-            return {}
+        info = self.image_manager.get_image_info()
         
-        info = {
-            'size': self.original_image.size,
-            'mode': self.original_image.mode,
-            'format': self.original_image.format,
-            'has_processed': self.processed_image is not None
-        }
-        
-        # Добавляем информацию о коэффициенте, если он был использован
-        if self.last_used_c is not None:
-            info['last_coefficient_c'] = round(self.last_used_c, 4)
-        
-        # Добавляем информацию о гамме, если она была использована
-        if self.last_used_gamma is not None:
-            info['last_gamma'] = round(self.last_used_gamma, 4)
-        
-        # Добавляем информацию о пороговом значении, если оно было использовано
-        if self.last_used_threshold is not None:
-            info['last_threshold'] = round(self.last_used_threshold, 1)
-        
-        # Добавляем информацию о вырезании диапазона яркостей, если оно было использовано
-        if self.last_brightness_range is not None:
-            range_info = self.last_brightness_range.copy()
-            range_info['min'] = round(range_info['min'], 1)
-            range_info['max'] = round(range_info['max'], 1)
-            if range_info.get('constant_value') is not None:
-                range_info['constant_value'] = round(range_info['constant_value'], 1)
-            info['last_brightness_range'] = range_info
+        # Добавляем информацию о последнем преобразовании
+        transform_info = self.transform_manager.get_last_transform_info()
+        if transform_info:
+            info.update(transform_info)
         
         return info
+    
+    # Свойства для обратной совместимости
+    @property
+    def original_image(self):
+        """Исходное изображение."""
+        return self.image_manager.original_image
+    
+    @property
+    def processed_image(self):
+        """Обработанное изображение."""
+        return self.image_manager.processed_image
+    
+    @property
+    def image_array(self):
+        """Массив изображения."""
+        return self.image_manager.image_array
