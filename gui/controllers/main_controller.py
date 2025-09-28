@@ -206,6 +206,27 @@ class MainController:
             processed_image = self.get_image_for_display("processed")
             self.on_image_display_update(original_image, processed_image)
     
+    def reset_image(self) -> bool:
+        """
+        Сбрасывает изображение к исходному состоянию.
+        
+        Returns:
+            bool: True если сброс выполнен успешно
+        """
+        if not self.image_processor.image_manager.has_original_image():
+            messagebox.showwarning("Предупреждение", "Нет изображения для сброса")
+            return False
+        
+        self._update_status("Сброс изображения...")
+        
+        # Сбрасываем обработанное изображение
+        self.image_processor.image_manager.clear_processed_image()
+        
+        self._update_image_display()
+        self._update_info()
+        self._update_status("Изображение сброшено к исходному состоянию")
+        return True
+    
     def _update_info(self):
         """Обновляет информацию."""
         if self.on_info_update:
