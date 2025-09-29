@@ -191,7 +191,9 @@ class ModernPhotoEditor:
         # Тип преобразования
         ttk.Label(settings_frame, text="Тип преобразования:", style='Modern.TLabel').pack(anchor=tk.W, pady=(0, 5))
         self.transform_combo = ttk.Combobox(settings_frame, 
-                                          values=["Логарифмическое", "Степенное", "Бинарное", "Вырезание диапазона яркостей"], 
+                                          values=["Логарифмическое", "Степенное", "Бинарное", "Вырезание диапазона яркостей",
+                                                 "Прямоугольный фильтр 3x3", "Прямоугольный фильтр 5x5", 
+                                                 "Медианный фильтр 3x3", "Медианный фильтр 5x5"], 
                                           state="readonly", width=20, style='Modern.TCombobox')
         self.transform_combo.pack(fill=tk.X, pady=(0, 10))
         self.transform_combo.set("Логарифмическое")
@@ -350,9 +352,26 @@ class ModernPhotoEditor:
             # Получаем параметры преобразования
             params = self.get_transform_parameters()
             
-            # Здесь должна быть логика применения преобразований
-            # Для демонстрации просто копируем изображение
-            self.processed_image = self.original_image.copy()
+            # Применяем преобразование с помощью фабрики
+            from image_processing.factories.transform_factory import TransformFactory
+            
+            # Создаем преобразование
+            transform = TransformFactory.create_transform(transform_type)
+            
+            # Конвертируем изображение в numpy array
+            import numpy as np
+            image_array = np.array(self.original_image)
+            
+            # Применяем преобразование
+            processed_array = transform.apply(image_array, **params)
+            
+            # Конвертируем обратно в PIL Image
+            from PIL import Image
+            if len(processed_array.shape) == 3:
+                self.processed_image = Image.fromarray(processed_array)
+            else:
+                self.processed_image = Image.fromarray(processed_array, mode='L')
+            
             self.display_processed_image()
             
             # Обновляем информацию о примененных параметрах
@@ -416,6 +435,11 @@ class ModernPhotoEditor:
             except ValueError:
                 raise ValueError("Неверные значения параметров яркости")
         
+        elif transform_type in ["Прямоугольный фильтр 3x3", "Прямоугольный фильтр 5x5", 
+                               "Медианный фильтр 3x3", "Медианный фильтр 5x5"]:
+            # Фильтры сглаживания не требуют дополнительных параметров
+            pass
+        
         return params
     
     def format_parameters_info(self, params):
@@ -446,6 +470,11 @@ class ModernPhotoEditor:
             info_lines.append(f"Режим вне диапазона: {params.get('outside_mode', 'Константа')}")
             if params.get('outside_mode') == "Константа" and 'constant_value' in params:
                 info_lines.append(f"Константа: {params['constant_value']}")
+        
+        elif transform_type in ["Прямоугольный фильтр 3x3", "Прямоугольный фильтр 5x5", 
+                               "Медианный фильтр 3x3", "Медианный фильтр 5x5"]:
+            # Фильтры сглаживания не имеют дополнительных параметров
+            info_lines.append("Фильтр сглаживания применен")
         
         return "\n".join(info_lines) if info_lines else "Параметры не заданы"
     
@@ -512,7 +541,11 @@ class ModernPhotoEditor:
             "Логарифмическое": "Логарифмическое преобразование улучшает видимость деталей в темных областях изображения.",
             "Степенное": "Степенное преобразование позволяет регулировать контрастность изображения с помощью параметра гамма.",
             "Бинарное": "Бинарное преобразование создает черно-белое изображение на основе порогового значения.",
-            "Вырезание диапазона яркостей": "Вырезание диапазона яркостей выделяет определенный диапазон яркостей в изображении."
+            "Вырезание диапазона яркостей": "Вырезание диапазона яркостей выделяет определенный диапазон яркостей в изображении.",
+            "Прямоугольный фильтр 3x3": "Прямоугольный фильтр 3x3 применяет усреднение по окну 3x3 для сглаживания изображения.",
+            "Прямоугольный фильтр 5x5": "Прямоугольный фильтр 5x5 применяет усреднение по окну 5x5 для более сильного сглаживания.",
+            "Медианный фильтр 3x3": "Медианный фильтр 3x3 удаляет шум, заменяя каждый пиксель медианой в окне 3x3.",
+            "Медианный фильтр 5x5": "Медианный фильтр 5x5 удаляет шум, заменяя каждый пиксель медианой в окне 5x5."
         }
         
         self.desc_text.configure(state=tk.NORMAL)
@@ -552,6 +585,10 @@ class ModernPhotoEditor:
             self.outside_mode_label.pack(anchor=tk.W, pady=(5, 0))
             self.outside_mode_combo.pack(anchor=tk.W, pady=(0, 5))
             self.on_outside_mode_change()
+        elif transform_type in ["Прямоугольный фильтр 3x3", "Прямоугольный фильтр 5x5", 
+                               "Медианный фильтр 3x3", "Медианный фильтр 5x5"]:
+            # Фильтры сглаживания не требуют дополнительных параметров
+            pass
     
     def hide_all_parameter_elements(self):
         """Скрывает все элементы параметров."""
