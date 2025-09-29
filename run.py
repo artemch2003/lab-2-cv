@@ -119,6 +119,9 @@ class ModernPhotoEditor:
         # Основная рабочая область
         self.create_workspace(main_container)
         
+        # Панель оценки качества
+        self.create_quality_panel(main_container)
+        
         # Нижняя панель
         self.create_bottom_panel(main_container)
     
@@ -284,6 +287,44 @@ class ModernPhotoEditor:
         
         # Показываем элементы для логарифмического преобразования по умолчанию
         self.update_ui_for_transform("Логарифмическое")
+    
+    def create_quality_panel(self, parent):
+        """Создает панель оценки качества."""
+        quality_frame = ttk.LabelFrame(parent, text="Оценка качества обработки", style='Modern.TLabelFrame', padding="15")
+        quality_frame.pack(fill=tk.X, pady=(10, 0), padx=20)
+        
+        # Кнопки управления качеством
+        quality_buttons_frame = ttk.Frame(quality_frame, style='Modern.TFrame')
+        quality_buttons_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Кнопка анализа качества
+        self.analyze_quality_btn = ttk.Button(quality_buttons_frame, text="📊 Анализ качества", 
+                                             style='Modern.TButton', command=self.analyze_quality)
+        self.analyze_quality_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Кнопка показа карты разности
+        self.show_diff_map_btn = ttk.Button(quality_buttons_frame, text="🗺️ Карта разности", 
+                                           style='Modern.TButton', command=self.show_difference_map)
+        self.show_diff_map_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Кнопка сравнения фильтров
+        self.compare_filters_btn = ttk.Button(quality_buttons_frame, text="⚖️ Сравнить фильтры", 
+                                             style='Modern.TButton', command=self.compare_filters)
+        self.compare_filters_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Область отображения карты разности
+        diff_frame = ttk.LabelFrame(quality_frame, text="Карта абсолютной разности", style='Modern.TLabelFrame', padding="5")
+        diff_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.diff_canvas = tk.Canvas(diff_frame, bg="#1e1e1e", highlightthickness=0, height=200)
+        self.diff_canvas.pack(fill=tk.BOTH, expand=True)
+        self.diff_canvas.create_text(200, 100, text="Нажмите 'Анализ качества' для просмотра карты разности", 
+                                   fill="#666666", font=("Segoe UI", 10), justify=tk.CENTER)
+        
+        # Переменные для хранения данных
+        self.quality_metrics = None
+        self.difference_map = None
+        self.quality_assessor = None
     
     def create_bottom_panel(self, parent):
         """Создает нижнюю панель."""
@@ -685,6 +726,236 @@ class ModernPhotoEditor:
         self.info_text.delete(1.0, tk.END)
         self.info_text.insert(1.0, f"Информация об изображении:\n{message}")
         self.info_text.configure(state=tk.DISABLED)
+    
+    def analyze_quality(self):
+        """Анализирует качество обработки изображения."""
+        if not self.original_image or not self.processed_image:
+            messagebox.showwarning("Предупреждение", "Сначала загрузите изображение и примените преобразование")
+            return
+        
+        try:
+            # Инициализируем оценщик качества
+            from image_processing.quality_assessment import QualityAssessment
+            self.quality_assessor = QualityAssessment()
+            
+            # Конвертируем изображения в numpy arrays
+            import numpy as np
+            original_array = np.array(self.original_image)
+            processed_array = np.array(self.processed_image)
+            
+            # Вычисляем метрики качества
+            self.quality_metrics = self.quality_assessor.compute_quality_metrics(original_array, processed_array)
+            
+            # Вычисляем карту разности
+            self.difference_map = self.quality_assessor.compute_absolute_difference_map(original_array, processed_array)
+            
+            # Отображаем карту разности
+            self.display_difference_map()
+            
+            # Обновляем информацию
+            quality_report = self.quality_assessor.format_quality_report(self.quality_metrics)
+            self.update_info(f"Анализ качества завершен\n{quality_report}")
+            
+            self.status_var.set("Анализ качества завершен")
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось проанализировать качество: {e}")
+            self.status_var.set("Ошибка анализа качества")
+    
+    def display_difference_map(self):
+        """Отображает карту разности."""
+        if self.difference_map is None:
+            return
+        
+        try:
+            # Создаем визуализацию карты разности
+            visualization = self.quality_assessor.create_visualization_map(self.difference_map, 'hot')
+            
+            # Конвертируем в PIL Image
+            from PIL import Image
+            if len(visualization.shape) == 3:
+                diff_image = Image.fromarray(visualization)
+            else:
+                diff_image = Image.fromarray(visualization, mode='L')
+            
+            # Изменяем размер для отображения
+            display_size = (400, 200)
+            display_image = diff_image.copy()
+            display_image.thumbnail(display_size, Image.Resampling.LANCZOS)
+            
+            # Конвертируем в PhotoImage
+            photo = ImageTk.PhotoImage(display_image)
+            
+            # Очищаем canvas и отображаем карту
+            self.diff_canvas.delete("all")
+            self.diff_canvas.create_image(200, 100, image=photo)
+            self.diff_canvas.image = photo  # Сохраняем ссылку
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось отобразить карту разности: {e}")
+    
+    def show_difference_map(self):
+        """Показывает карту разности в отдельном окне."""
+        if self.difference_map is None:
+            messagebox.showwarning("Предупреждение", "Сначала выполните анализ качества")
+            return
+        
+        try:
+            # Создаем новое окно
+            diff_window = tk.Toplevel(self.root)
+            diff_window.title("Карта абсолютной разности")
+            diff_window.geometry("600x400")
+            diff_window.configure(bg="#2b2b2b")
+            
+            # Создаем canvas для отображения
+            canvas = tk.Canvas(diff_window, bg="#1e1e1e", highlightthickness=0)
+            canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Создаем визуализацию
+            visualization = self.quality_assessor.create_visualization_map(self.difference_map, 'hot')
+            
+            # Конвертируем в PIL Image
+            from PIL import Image
+            if len(visualization.shape) == 3:
+                diff_image = Image.fromarray(visualization)
+            else:
+                diff_image = Image.fromarray(visualization, mode='L')
+            
+            # Изменяем размер для отображения
+            display_size = (580, 380)
+            display_image = diff_image.copy()
+            display_image.thumbnail(display_size, Image.Resampling.LANCZOS)
+            
+            # Конвертируем в PhotoImage
+            photo = ImageTk.PhotoImage(display_image)
+            
+            # Отображаем карту
+            canvas.create_image(300, 200, image=photo)
+            canvas.image = photo  # Сохраняем ссылку
+            
+            # Добавляем информацию
+            info_text = f"Средняя разность: {self.quality_metrics['mean_difference']:.2f}\n"
+            info_text += f"Максимальная разность: {self.quality_metrics['max_difference']}\n"
+            info_text += f"Оценка качества: {self.quality_metrics['quality_rating']}"
+            
+            info_label = tk.Label(diff_window, text=info_text, bg="#2b2b2b", fg="#ffffff", 
+                                font=("Segoe UI", 10))
+            info_label.pack(pady=5)
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось показать карту разности: {e}")
+    
+    def compare_filters(self):
+        """Сравнивает качество различных фильтров."""
+        if not self.original_image:
+            messagebox.showwarning("Предупреждение", "Сначала загрузите изображение")
+            return
+        
+        try:
+            # Создаем окно сравнения
+            compare_window = tk.Toplevel(self.root)
+            compare_window.title("Сравнение качества фильтров")
+            compare_window.geometry("800x600")
+            compare_window.configure(bg="#2b2b2b")
+            
+            # Список доступных фильтров
+            available_filters = [
+                "Прямоугольный фильтр 3x3", "Прямоугольный фильтр 5x5",
+                "Медианный фильтр 3x3", "Медианный фильтр 5x5",
+                "Фильтр Гаусса σ=1.0", "Фильтр Гаусса σ=2.0", "Фильтр Гаусса σ=3.0",
+                "Сигма-фильтр σ=1.0", "Сигма-фильтр σ=2.0", "Сигма-фильтр σ=3.0"
+            ]
+            
+            # Создаем интерфейс выбора фильтров
+            selection_frame = ttk.LabelFrame(compare_window, text="Выберите фильтры для сравнения", 
+                                          style='Modern.TLabelFrame', padding="10")
+            selection_frame.pack(fill=tk.X, padx=10, pady=10)
+            
+            # Чекбоксы для выбора фильтров
+            self.selected_filters = {}
+            for i, filter_name in enumerate(available_filters):
+                var = tk.BooleanVar()
+                cb = ttk.Checkbutton(selection_frame, text=filter_name, variable=var)
+                cb.grid(row=i//2, column=i%2, sticky=tk.W, padx=5, pady=2)
+                self.selected_filters[filter_name] = var
+            
+            # Кнопка запуска сравнения
+            compare_btn = ttk.Button(selection_frame, text="🔄 Сравнить выбранные фильтры", 
+                                   style='Modern.TButton', command=lambda: self.run_filter_comparison(compare_window))
+            compare_btn.grid(row=len(available_filters)//2 + 1, column=0, columnspan=2, pady=10)
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось создать окно сравнения: {e}")
+    
+    def run_filter_comparison(self, window):
+        """Запускает сравнение выбранных фильтров."""
+        try:
+            # Получаем выбранные фильтры
+            selected = [name for name, var in self.selected_filters.items() if var.get()]
+            
+            if not selected:
+                messagebox.showwarning("Предупреждение", "Выберите хотя бы один фильтр")
+                return
+            
+            # Инициализируем оценщик качества
+            from image_processing.quality_assessment import FilterQualityComparator
+            comparator = FilterQualityComparator()
+            
+            # Применяем выбранные фильтры
+            import numpy as np
+            from image_processing.factories.transform_factory import TransformFactory
+            
+            original_array = np.array(self.original_image)
+            filter_results = {}
+            
+            for filter_name in selected:
+                try:
+                    transform = TransformFactory.create_transform(filter_name)
+                    processed_array = transform.apply(original_array)
+                    filter_results[filter_name] = processed_array
+                except Exception as e:
+                    messagebox.showerror("Ошибка", f"Не удалось применить фильтр {filter_name}: {e}")
+                    return
+            
+            # Сравниваем фильтры
+            comparison_results = comparator.compare_filters(original_array, filter_results)
+            
+            # Отображаем результаты
+            self.display_comparison_results(window, comparison_results, comparator)
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось выполнить сравнение: {e}")
+    
+    def display_comparison_results(self, window, results, comparator):
+        """Отображает результаты сравнения фильтров."""
+        try:
+            # Очищаем окно
+            for widget in window.winfo_children():
+                if isinstance(widget, ttk.LabelFrame):
+                    widget.destroy()
+            
+            # Создаем область для результатов
+            results_frame = ttk.LabelFrame(window, text="Результаты сравнения", 
+                                         style='Modern.TLabelFrame', padding="10")
+            results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Отчет о сравнении
+            report_text = comparator.format_comparison_report()
+            
+            # Создаем текстовое поле для отчета
+            text_widget = tk.Text(results_frame, wrap=tk.WORD, bg="#3c3c3c", fg="#ffffff", 
+                                 font=("Segoe UI", 9))
+            text_widget.pack(fill=tk.BOTH, expand=True)
+            text_widget.insert(1.0, report_text)
+            text_widget.configure(state=tk.DISABLED)
+            
+            # Кнопка закрытия
+            close_btn = ttk.Button(results_frame, text="Закрыть", style='Modern.TButton', 
+                                  command=window.destroy)
+            close_btn.pack(pady=10)
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось отобразить результаты: {e}")
 
 def main():
     """Главная функция запуска приложения."""
