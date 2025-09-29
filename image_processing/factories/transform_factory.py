@@ -11,7 +11,8 @@ from ..transforms.brightness_range_transform import BrightnessRangeTransform
 from ..transforms.smoothing_filters import (
     RectangularFilter3x3, RectangularFilter5x5,
     MedianFilter3x3, MedianFilter5x5,
-    GaussianFilterSigma1, GaussianFilterSigma2, GaussianFilterSigma3
+    GaussianFilterSigma1, GaussianFilterSigma2, GaussianFilterSigma3,
+    SigmaFilterSigma1, SigmaFilterSigma2, SigmaFilterSigma3
 )
 import logging
 
@@ -32,7 +33,10 @@ class TransformFactory:
         "Медианный фильтр 5x5": MedianFilter5x5,
         "Фильтр Гаусса σ=1.0": GaussianFilterSigma1,
         "Фильтр Гаусса σ=2.0": GaussianFilterSigma2,
-        "Фильтр Гаусса σ=3.0": GaussianFilterSigma3
+        "Фильтр Гаусса σ=3.0": GaussianFilterSigma3,
+        "Сигма-фильтр σ=1.0": SigmaFilterSigma1,
+        "Сигма-фильтр σ=2.0": SigmaFilterSigma2,
+        "Сигма-фильтр σ=3.0": SigmaFilterSigma3
     }
     
     @classmethod

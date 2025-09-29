@@ -458,3 +458,154 @@ class GaussianFilterSigma3(GaussianFilter):
     
     def get_name(self) -> str:
         return "Фильтр Гаусса σ=3.0"
+
+
+class SigmaFilter(SmoothingFilter):
+    """Сигма-фильтр для удаления шума."""
+    
+    def __init__(self, sigma: float = 1.0, kernel_size: int = 5):
+        """
+        Инициализация сигма-фильтра.
+        
+        Args:
+            sigma: Коэффициент для определения порога отклонения
+            kernel_size: Размер окна для анализа (по умолчанию 5x5)
+        """
+        super().__init__(kernel_size)
+        self.sigma = sigma
+    
+    def _validate_kernel_size(self):
+        """Валидирует размер ядра для сигма-фильтра."""
+        # Для сигма-фильтра размер ядра может быть любым положительным числом
+        if self.kernel_size <= 0:
+            raise ValueError("Размер ядра должен быть положительным")
+    
+    def apply(self, image_array: np.ndarray, **kwargs) -> np.ndarray:
+        """
+        Применяет сигма-фильтр к изображению.
+        
+        Args:
+            image_array: Массив изображения
+            **kwargs: Дополнительные параметры (sigma, kernel_size)
+            
+        Returns:
+            np.ndarray: Отфильтрованное изображение
+        """
+        # Обновляем параметры если указаны
+        if 'sigma' in kwargs:
+            self.sigma = kwargs['sigma']
+        if 'kernel_size' in kwargs:
+            self.kernel_size = kwargs['kernel_size']
+            self._validate_kernel_size()
+        
+        # Применяем padding
+        padded_image = self._apply_padding(image_array)
+        
+        # Применяем сигма-фильтр
+        filtered_image = self._apply_sigma_filter(padded_image)
+        
+        # Удаляем padding
+        result = self._remove_padding(filtered_image)
+        
+        # Обеспечиваем корректный тип данных
+        return np.clip(result, 0, 255).astype(np.uint8)
+    
+    def _apply_sigma_filter(self, image: np.ndarray) -> np.ndarray:
+        """
+        Применяет сигма-фильтр.
+        
+        Args:
+            image: Изображение с padding
+            
+        Returns:
+            np.ndarray: Результат сигма-фильтрации
+        """
+        if len(image.shape) == 3:
+            # Цветное изображение
+            result = np.zeros_like(image)
+            for channel in range(image.shape[2]):
+                result[:, :, channel] = self._sigma_filter_2d(image[:, :, channel])
+            return result
+        else:
+            # Оттенки серого
+            return self._sigma_filter_2d(image)
+    
+    def _sigma_filter_2d(self, image: np.ndarray) -> np.ndarray:
+        """
+        Выполняет сигма-фильтрацию для одного канала.
+        
+        Args:
+            image: 2D массив изображения
+            
+        Returns:
+            np.ndarray: Результат сигма-фильтрации
+        """
+        result = np.zeros_like(image, dtype=np.float64)
+        pad_size = self.kernel_size // 2
+        
+        for i in range(pad_size, image.shape[0] - pad_size):
+            for j in range(pad_size, image.shape[1] - pad_size):
+                # Извлекаем окно
+                window = image[i-pad_size:i+pad_size+1, j-pad_size:j+pad_size+1]
+                
+                # Вычисляем среднее значение в окне
+                mean_value = np.mean(window)
+                
+                # Вычисляем стандартное отклонение в окне
+                std_value = np.std(window)
+                
+                # Определяем порог отклонения
+                threshold = self.sigma * std_value
+                
+                # Фильтруем пиксели: оставляем только те, что близки к среднему
+                filtered_pixels = []
+                for pixel in window.flatten():
+                    if abs(pixel - mean_value) <= threshold:
+                        filtered_pixels.append(pixel)
+                
+                # Если есть отфильтрованные пиксели, берем их среднее
+                if filtered_pixels:
+                    result[i, j] = np.mean(filtered_pixels)
+                else:
+                    # Если все пиксели отклоняются, берем среднее всего окна
+                    result[i, j] = mean_value
+        
+        return result
+    
+    def get_name(self) -> str:
+        """Возвращает название фильтра."""
+        return f"Сигма-фильтр σ={self.sigma:.1f}"
+    
+    def get_sigma(self) -> float:
+        """Возвращает значение σ."""
+        return self.sigma
+
+
+class SigmaFilterSigma1(SigmaFilter):
+    """Сигма-фильтр с σ=1.0."""
+    
+    def __init__(self):
+        super().__init__(1.0, 5)
+    
+    def get_name(self) -> str:
+        return "Сигма-фильтр σ=1.0"
+
+
+class SigmaFilterSigma2(SigmaFilter):
+    """Сигма-фильтр с σ=2.0."""
+    
+    def __init__(self):
+        super().__init__(2.0, 5)
+    
+    def get_name(self) -> str:
+        return "Сигма-фильтр σ=2.0"
+
+
+class SigmaFilterSigma3(SigmaFilter):
+    """Сигма-фильтр с σ=3.0."""
+    
+    def __init__(self):
+        super().__init__(3.0, 5)
+    
+    def get_name(self) -> str:
+        return "Сигма-фильтр σ=3.0"
