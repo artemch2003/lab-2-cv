@@ -82,14 +82,19 @@ class QualityAssessment:
             metrics['low_difference_percent'] = (metrics['low_difference_pixels'] / total_pixels) * 100
             
             # Оценка качества (чем меньше разность, тем лучше)
+            # Числовая оценка для математических операций (0-100)
             if metrics['mean_difference'] < 10:
-                metrics['quality_rating'] = "Отличное"
+                metrics['quality_rating'] = 90.0  # Отличное
+                metrics['quality_label'] = "Отличное"
             elif metrics['mean_difference'] < 25:
-                metrics['quality_rating'] = "Хорошее"
+                metrics['quality_rating'] = 75.0  # Хорошее
+                metrics['quality_label'] = "Хорошее"
             elif metrics['mean_difference'] < 50:
-                metrics['quality_rating'] = "Удовлетворительное"
+                metrics['quality_rating'] = 60.0  # Удовлетворительное
+                metrics['quality_label'] = "Удовлетворительное"
             else:
-                metrics['quality_rating'] = "Плохое"
+                metrics['quality_rating'] = 30.0  # Плохое
+                metrics['quality_label'] = "Плохое"
             
             return metrics
             
@@ -175,7 +180,7 @@ class QualityAssessment:
         """
         report = []
         report.append("=== ОЦЕНКА КАЧЕСТВА ОБРАБОТКИ ===")
-        report.append(f"Общая оценка: {metrics['quality_rating']}")
+        report.append(f"Общая оценка: {metrics.get('quality_label', metrics['quality_rating'])}")
         report.append("")
         report.append("Статистика разности:")
         report.append(f"  Средняя разность: {metrics['mean_difference']:.2f}")

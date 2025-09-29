@@ -96,18 +96,21 @@ class SharpnessComparator:
         
         # Лучший по общему качеству
         best_quality = max(quality_metrics.items(), 
-                          key=lambda x: x[1]['quality_rating'])
+                          key=lambda x: float(x[1]['quality_rating']))
         best_filters['best_overall'] = best_quality[0]
         
         # Лучший по минимальной разности
         best_difference = min(quality_metrics.items(), 
-                             key=lambda x: x[1]['mean_difference'])
+                             key=lambda x: float(x[1]['mean_difference']))
         best_filters['best_difference'] = best_difference[0]
         
-        # Лучший по максимальному PSNR
-        best_psnr = max(quality_metrics.items(), 
-                       key=lambda x: x[1].get('psnr', 0))
-        best_filters['best_psnr'] = best_psnr[0]
+        # Лучший по максимальному PSNR (если есть)
+        psnr_items = [(k, v) for k, v in quality_metrics.items() if 'psnr' in v and v['psnr'] is not None]
+        if psnr_items:
+            best_psnr = max(psnr_items, key=lambda x: float(x[1]['psnr']))
+            best_filters['best_psnr'] = best_psnr[0]
+        else:
+            best_filters['best_psnr'] = "Не определен"
         
         return best_filters
     
@@ -121,14 +124,17 @@ class SharpnessComparator:
         Returns:
             Dict[str, Any]: Сводка сравнения
         """
+        # Извлекаем числовые значения для вычислений
+        quality_ratings = [float(m['quality_rating']) for m in results['quality_metrics'].values()]
+        
         summary = {
             'total_filters_tested': len(results['quality_metrics']),
             'kernel_sizes_tested': list(set([k.split(',')[0].split('=')[1] for k in results['quality_metrics'].keys()])),
             'lambda_values_tested': list(set([k.split('λ=')[1] for k in results['quality_metrics'].keys()])),
-            'average_quality': np.mean([m['quality_rating'] for m in results['quality_metrics'].values()]),
+            'average_quality': np.mean(quality_ratings) if quality_ratings else 0.0,
             'quality_range': {
-                'min': min([m['quality_rating'] for m in results['quality_metrics'].values()]),
-                'max': max([m['quality_rating'] for m in results['quality_metrics'].values()])
+                'min': min(quality_ratings) if quality_ratings else 0.0,
+                'max': max(quality_ratings) if quality_ratings else 0.0
             }
         }
         
