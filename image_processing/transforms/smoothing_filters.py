@@ -27,7 +27,11 @@ class SmoothingFilter(BaseTransform):
     def _validate_kernel_size(self):
         """Валидирует размер ядра."""
         if self.kernel_size not in [3, 5]:
-            raise ValueError("Размер ядра должен быть 3 или 5")
+            # Для фильтра Гаусса разрешаем большие размеры ядра
+            if hasattr(self, 'sigma') and self.kernel_size > 0:
+                pass  # Размер ядра вычисляется по правилу 3σ
+            else:
+                raise ValueError("Размер ядра должен быть 3 или 5")
     
     def _apply_padding(self, image: np.ndarray) -> np.ndarray:
         """
@@ -288,3 +292,169 @@ class MedianFilter5x5(MedianFilter):
     
     def get_name(self) -> str:
         return "Медианный фильтр 5x5"
+
+
+class GaussianFilter(SmoothingFilter):
+    """Фильтр Гаусса с ядром по правилу 3σ."""
+    
+    def __init__(self, sigma: float = 1.0):
+        """
+        Инициализация фильтра Гаусса.
+        
+        Args:
+            sigma: Стандартное отклонение для фильтра Гаусса
+        """
+        # Вычисляем размер ядра по правилу 3σ
+        kernel_size = int(2 * 3 * sigma) + 1
+        # Обеспечиваем нечетный размер ядра
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        
+        super().__init__(kernel_size)
+        self.sigma = sigma
+        self._create_gaussian_kernel()
+    
+    def _validate_kernel_size(self):
+        """Валидирует размер ядра для фильтра Гаусса."""
+        # Для фильтра Гаусса размер ядра может быть любым положительным числом
+        if self.kernel_size <= 0:
+            raise ValueError("Размер ядра должен быть положительным")
+    
+    def _create_gaussian_kernel(self):
+        """Создает ядро фильтра Гаусса."""
+        center = self.kernel_size // 2
+        kernel = np.zeros((self.kernel_size, self.kernel_size), dtype=np.float64)
+        
+        # Вычисляем значения ядра по формуле Гаусса
+        for i in range(self.kernel_size):
+            for j in range(self.kernel_size):
+                x = i - center
+                y = j - center
+                # Формула 2D Гаусса: G(x,y) = (1/(2πσ²)) * exp(-(x²+y²)/(2σ²))
+                exponent = -(x*x + y*y) / (2 * self.sigma * self.sigma)
+                kernel[i, j] = np.exp(exponent)
+        
+        # Нормализуем ядро, чтобы сумма была равна 1
+        kernel_sum = np.sum(kernel)
+        if kernel_sum > 0:
+            self.kernel = kernel / kernel_sum
+        else:
+            # Если сумма равна 0, создаем единичное ядро
+            self.kernel = np.ones((self.kernel_size, self.kernel_size)) / (self.kernel_size * self.kernel_size)
+    
+    def apply(self, image_array: np.ndarray, **kwargs) -> np.ndarray:
+        """
+        Применяет фильтр Гаусса к изображению.
+        
+        Args:
+            image_array: Массив изображения
+            **kwargs: Дополнительные параметры (sigma)
+            
+        Returns:
+            np.ndarray: Отфильтрованное изображение
+        """
+        # Обновляем параметры если указаны
+        if 'sigma' in kwargs:
+            self.sigma = kwargs['sigma']
+            # Пересчитываем размер ядра и ядро
+            kernel_size = int(2 * 3 * self.sigma) + 1
+            if kernel_size % 2 == 0:
+                kernel_size += 1
+            self.kernel_size = kernel_size
+            self._create_gaussian_kernel()
+        
+        # Применяем padding
+        padded_image = self._apply_padding(image_array)
+        
+        # Применяем фильтр
+        filtered_image = self._apply_convolution(padded_image)
+        
+        # Удаляем padding
+        result = self._remove_padding(filtered_image)
+        
+        # Обеспечиваем корректный тип данных
+        return np.clip(result, 0, 255).astype(np.uint8)
+    
+    def _apply_convolution(self, image: np.ndarray) -> np.ndarray:
+        """
+        Применяет свертку с ядром фильтра Гаусса.
+        
+        Args:
+            image: Изображение с padding
+            
+        Returns:
+            np.ndarray: Результат свертки
+        """
+        if len(image.shape) == 3:
+            # Цветное изображение
+            result = np.zeros_like(image)
+            for channel in range(image.shape[2]):
+                result[:, :, channel] = self._convolve_2d(image[:, :, channel])
+            return result
+        else:
+            # Оттенки серого
+            return self._convolve_2d(image)
+    
+    def _convolve_2d(self, image: np.ndarray) -> np.ndarray:
+        """
+        Выполняет 2D свертку для одного канала.
+        
+        Args:
+            image: 2D массив изображения
+            
+        Returns:
+            np.ndarray: Результат свертки
+        """
+        result = np.zeros_like(image, dtype=np.float64)
+        pad_size = self.kernel_size // 2
+        
+        for i in range(pad_size, image.shape[0] - pad_size):
+            for j in range(pad_size, image.shape[1] - pad_size):
+                # Извлекаем окно
+                window = image[i-pad_size:i+pad_size+1, j-pad_size:j+pad_size+1]
+                # Применяем свертку
+                result[i, j] = np.sum(window * self.kernel)
+        
+        return result
+    
+    def get_name(self) -> str:
+        """Возвращает название фильтра."""
+        return f"Фильтр Гаусса σ={self.sigma:.1f}"
+    
+    def get_kernel_size(self) -> int:
+        """Возвращает размер ядра."""
+        return self.kernel_size
+    
+    def get_sigma(self) -> float:
+        """Возвращает значение σ."""
+        return self.sigma
+
+
+class GaussianFilterSigma1(GaussianFilter):
+    """Фильтр Гаусса с σ=1.0."""
+    
+    def __init__(self):
+        super().__init__(1.0)
+    
+    def get_name(self) -> str:
+        return "Фильтр Гаусса σ=1.0"
+
+
+class GaussianFilterSigma2(GaussianFilter):
+    """Фильтр Гаусса с σ=2.0."""
+    
+    def __init__(self):
+        super().__init__(2.0)
+    
+    def get_name(self) -> str:
+        return "Фильтр Гаусса σ=2.0"
+
+
+class GaussianFilterSigma3(GaussianFilter):
+    """Фильтр Гаусса с σ=3.0."""
+    
+    def __init__(self):
+        super().__init__(3.0)
+    
+    def get_name(self) -> str:
+        return "Фильтр Гаусса σ=3.0"

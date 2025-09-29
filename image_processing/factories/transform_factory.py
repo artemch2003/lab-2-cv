@@ -10,7 +10,8 @@ from ..transforms.binary_transform import BinaryTransform
 from ..transforms.brightness_range_transform import BrightnessRangeTransform
 from ..transforms.smoothing_filters import (
     RectangularFilter3x3, RectangularFilter5x5,
-    MedianFilter3x3, MedianFilter5x5
+    MedianFilter3x3, MedianFilter5x5,
+    GaussianFilterSigma1, GaussianFilterSigma2, GaussianFilterSigma3
 )
 import logging
 
@@ -28,7 +29,10 @@ class TransformFactory:
         "Прямоугольный фильтр 3x3": RectangularFilter3x3,
         "Прямоугольный фильтр 5x5": RectangularFilter5x5,
         "Медианный фильтр 3x3": MedianFilter3x3,
-        "Медианный фильтр 5x5": MedianFilter5x5
+        "Медианный фильтр 5x5": MedianFilter5x5,
+        "Фильтр Гаусса σ=1.0": GaussianFilterSigma1,
+        "Фильтр Гаусса σ=2.0": GaussianFilterSigma2,
+        "Фильтр Гаусса σ=3.0": GaussianFilterSigma3
     }
     
     @classmethod
