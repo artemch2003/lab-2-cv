@@ -8,10 +8,6 @@ from ..transforms.logarithmic_transform import LogarithmicTransform
 from ..transforms.power_transform import PowerTransform
 from ..transforms.binary_transform import BinaryTransform
 from ..transforms.brightness_range_transform import BrightnessRangeTransform
-from ..transforms.smoothing_filters import (
-    RectangularFilter3x3, RectangularFilter5x5,
-    MedianFilter3x3, MedianFilter5x5
-)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,11 +20,7 @@ class TransformFactory:
         "Логарифмическое": LogarithmicTransform,
         "Степенное": PowerTransform,
         "Бинарное": BinaryTransform,
-        "Вырезание диапазона яркостей": BrightnessRangeTransform,
-        "Прямоугольный фильтр 3x3": RectangularFilter3x3,
-        "Прямоугольный фильтр 5x5": RectangularFilter5x5,
-        "Медианный фильтр 3x3": MedianFilter3x3,
-        "Медианный фильтр 5x5": MedianFilter5x5
+        "Вырезание диапазона яркостей": BrightnessRangeTransform
     }
     
     @classmethod
