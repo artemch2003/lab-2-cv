@@ -14,6 +14,11 @@ from ..transforms.smoothing_filters import (
     GaussianFilterSigma1, GaussianFilterSigma2, GaussianFilterSigma3,
     SigmaFilterSigma1, SigmaFilterSigma2, SigmaFilterSigma3
 )
+from ..transforms.sharpness_filters import (
+    UnsharpMasking3x3Lambda05, UnsharpMasking3x3Lambda10, UnsharpMasking3x3Lambda15, UnsharpMasking3x3Lambda20,
+    UnsharpMasking5x5Lambda05, UnsharpMasking5x5Lambda10, UnsharpMasking5x5Lambda15, UnsharpMasking5x5Lambda20,
+    UnsharpMasking7x7Lambda05, UnsharpMasking7x7Lambda10, UnsharpMasking7x7Lambda15, UnsharpMasking7x7Lambda20
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,7 +41,20 @@ class TransformFactory:
         "Фильтр Гаусса σ=3.0": GaussianFilterSigma3,
         "Сигма-фильтр σ=1.0": SigmaFilterSigma1,
         "Сигма-фильтр σ=2.0": SigmaFilterSigma2,
-        "Сигма-фильтр σ=3.0": SigmaFilterSigma3
+        "Сигма-фильтр σ=3.0": SigmaFilterSigma3,
+        # Фильтры резкости (нерезкое маскирование)
+        "Нерезкое маскирование k=3, λ=0.5": UnsharpMasking3x3Lambda05,
+        "Нерезкое маскирование k=3, λ=1.0": UnsharpMasking3x3Lambda10,
+        "Нерезкое маскирование k=3, λ=1.5": UnsharpMasking3x3Lambda15,
+        "Нерезкое маскирование k=3, λ=2.0": UnsharpMasking3x3Lambda20,
+        "Нерезкое маскирование k=5, λ=0.5": UnsharpMasking5x5Lambda05,
+        "Нерезкое маскирование k=5, λ=1.0": UnsharpMasking5x5Lambda10,
+        "Нерезкое маскирование k=5, λ=1.5": UnsharpMasking5x5Lambda15,
+        "Нерезкое маскирование k=5, λ=2.0": UnsharpMasking5x5Lambda20,
+        "Нерезкое маскирование k=7, λ=0.5": UnsharpMasking7x7Lambda05,
+        "Нерезкое маскирование k=7, λ=1.0": UnsharpMasking7x7Lambda10,
+        "Нерезкое маскирование k=7, λ=1.5": UnsharpMasking7x7Lambda15,
+        "Нерезкое маскирование k=7, λ=2.0": UnsharpMasking7x7Lambda20
     }
     
     @classmethod
