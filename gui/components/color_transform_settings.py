@@ -1,5 +1,6 @@
 """
-Современный компонент для настроек преобразований в стиле фоторедактора.
+Компонент для настроек цветовых преобразований.
+Группирует логарифмическое, степенное, бинарное преобразования и вырезание диапазона яркостей.
 """
 
 import tkinter as tk
@@ -12,12 +13,12 @@ from utils.validators import ParameterValidator
 logger = logging.getLogger(__name__)
 
 
-class ModernTransformSettings:
-    """Современный компонент для управления настройками преобразований."""
+class ColorTransformSettings:
+    """Компонент для управления настройками цветовых преобразований."""
     
     def __init__(self, parent_frame: ttk.Frame, on_transform_change: Callable[[str], None]):
         """
-        Инициализация компонента настроек.
+        Инициализация компонента настроек цветовых преобразований.
         
         Args:
             parent_frame: Родительский фрейм
@@ -43,28 +44,76 @@ class ModernTransformSettings:
         self._create_widgets()
         self._setup_bindings()
     
+    def _setup_styles(self):
+        """Настраивает стили если они не инициализированы."""
+        try:
+            # Проверяем, есть ли уже стили
+            style = ttk.Style()
+            style.configure('Modern.TLabelFrame')
+        except:
+            # Если стили не настроены, настраиваем их
+            style = ttk.Style()
+            style.theme_use('clam')
+            
+            # Базовые стили
+            style.configure('Modern.TFrame', background='#2b2b2b')
+            style.configure('Modern.TLabelFrame', 
+                           background='#3c3c3c', 
+                           foreground='#ffffff',
+                           borderwidth=1,
+                           relief='solid')
+            style.configure('Modern.TLabelFrame.Label', 
+                           background='#3c3c3c', 
+                           foreground='#ffffff',
+                           font=('Segoe UI', 10, 'bold'))
+            style.configure('Modern.TLabel', 
+                           background='#3c3c3c', 
+                           foreground='#ffffff',
+                           font=('Segoe UI', 9))
+            style.configure('Modern.TButton', 
+                           background='#0078d4',
+                           foreground='#ffffff',
+                           font=('Segoe UI', 9, 'bold'),
+                           borderwidth=0,
+                           focuscolor='none')
+            style.configure('Modern.TCombobox',
+                           fieldbackground='#3c3c3c',
+                           background='#3c3c3c',
+                           foreground='#ffffff',
+                           borderwidth=1,
+                           arrowcolor='#ffffff')
+            style.configure('Modern.TEntry',
+                           fieldbackground='#3c3c3c',
+                           background='#3c3c3c',
+                           foreground='#ffffff',
+                           borderwidth=1,
+                           insertcolor='#ffffff')
+    
     def _create_widgets(self):
-        """Создает виджеты настроек."""
+        """Создает виджеты настроек цветовых преобразований."""
+        # Инициализируем стили если они не настроены
+        self._setup_styles()
+        
         # Главный контейнер
-        settings_container = ttk.LabelFrame(self.parent_frame, 
-                                          text="Настройки преобразования", 
-                                          style='Modern.TLabelFrame',
-                                          padding="15")
-        settings_container.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(10, 0))
-        settings_container.columnconfigure(0, weight=1)
+        self.settings_container = ttk.LabelFrame(self.parent_frame, 
+                                               text="🎨 Цветовые преобразования", 
+                                               style='Modern.TLabelFrame',
+                                               padding="15")
+        self.settings_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        self.settings_container.columnconfigure(0, weight=1)
         
         # Тип преобразования
-        self.create_transform_type_section(settings_container)
+        self.create_transform_type_section()
         
         # Параметры преобразования
-        self.create_parameters_section(settings_container)
+        self.create_parameters_section()
         
         # Кнопки управления
-        self.create_control_buttons(settings_container)
+        self.create_control_buttons()
     
-    def create_transform_type_section(self, parent):
-        """Создает секцию выбора типа преобразования."""
-        type_frame = ttk.LabelFrame(parent, 
+    def create_transform_type_section(self):
+        """Создает секцию выбора типа цветового преобразования."""
+        type_frame = ttk.LabelFrame(self.settings_container, 
                                   text="Тип преобразования", 
                                   style='Modern.TLabelFrame',
                                   padding="10")
@@ -90,9 +139,9 @@ class ModernTransformSettings:
                                           justify=tk.LEFT)
         self.description_label.grid(row=1, column=0, sticky=(tk.W, tk.E))
     
-    def create_parameters_section(self, parent):
+    def create_parameters_section(self):
         """Создает секцию параметров преобразования."""
-        self.parameters_frame = ttk.LabelFrame(parent, 
+        self.parameters_frame = ttk.LabelFrame(self.settings_container, 
                                              text="Параметры", 
                                              style='Modern.TLabelFrame',
                                              padding="10")
@@ -179,26 +228,18 @@ class ModernTransformSettings:
         self.constant_value_entry = ttk.Entry(self.parameters_frame, textvariable=self.constant_value_var, 
                                             style='Modern.TEntry', width=15)
     
-    def create_control_buttons(self, parent):
+    def create_control_buttons(self):
         """Создает кнопки управления."""
-        buttons_frame = ttk.Frame(parent, style='Modern.TFrame')
+        buttons_frame = ttk.Frame(self.settings_container, style='Modern.TFrame')
         buttons_frame.grid(row=2, column=0, sticky=(tk.W, tk.E))
         buttons_frame.columnconfigure(0, weight=1)
-        buttons_frame.columnconfigure(1, weight=1)
         
         # Кнопка применения
         self.apply_button = ttk.Button(buttons_frame, 
-                                     text="✨ Применить преобразование", 
+                                     text="✨ Применить цветовое преобразование", 
                                      style='Modern.TButton',
                                      command=self.apply_transform)
-        self.apply_button.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
-        
-        # Кнопка предварительного просмотра
-        self.preview_button = ttk.Button(buttons_frame, 
-                                        text="👁 Предварительный просмотр", 
-                                        style='Modern.TButton',
-                                        command=self.preview_transform)
-        self.preview_button.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 0))
+        self.apply_button.grid(row=0, column=0, sticky=(tk.W, tk.E))
     
     def _setup_bindings(self):
         """Настраивает привязки событий."""
@@ -427,9 +468,4 @@ class ModernTransformSettings:
     def apply_transform(self):
         """Применяет преобразование."""
         # Эта функция будет вызвана из главного окна
-        pass
-    
-    def preview_transform(self):
-        """Показывает предварительный просмотр преобразования."""
-        # TODO: Реализовать предварительный просмотр
         pass

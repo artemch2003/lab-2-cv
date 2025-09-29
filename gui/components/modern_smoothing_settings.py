@@ -138,7 +138,7 @@ class ModernSmoothingSettings:
     
     def _setup_bindings(self):
         """Настраивает привязки событий."""
-        self.filter_type_var.trace('w', self._on_filter_type_change)
+        self.filter_type_var.trace_add('write', self._on_filter_type_change)
     
     def _on_filter_type_change(self, *args):
         """Обрабатывает изменение типа фильтра."""

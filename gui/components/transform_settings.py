@@ -126,11 +126,11 @@ class TransformSettings:
     
     def _setup_bindings(self):
         """Настраивает привязки событий."""
-        self.transform_type_var.trace('w', self._on_transform_type_change)
-        self.mode_var.trace('w', self._on_mode_change)
-        self.threshold_mode_var.trace('w', self._on_threshold_mode_change)
-        self.preset_var.trace('w', self._on_preset_change)
-        self.outside_mode_var.trace('w', self._on_outside_mode_change)
+        self.transform_type_var.trace_add('write', self._on_transform_type_change)
+        self.mode_var.trace_add('write', self._on_mode_change)
+        self.threshold_mode_var.trace_add('write', self._on_threshold_mode_change)
+        self.preset_var.trace_add('write', self._on_preset_change)
+        self.outside_mode_var.trace_add('write', self._on_outside_mode_change)
     
     def _on_transform_type_change(self, *args):
         """Обрабатывает изменение типа преобразования."""
