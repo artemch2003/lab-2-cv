@@ -5,8 +5,8 @@
 
 import tkinter as tk
 from tkinter import ttk
-from PIL import Image
-from constants import AVAILABLE_FILTERS, SHARPNESS_KERNEL_SIZES, SHARPNESS_LAMBDA_VALUES
+from PIL import Image, ImageTk
+from constants import AVAILABLE_FILTERS, SHARPNESS_KERNEL_SIZES, SHARPNESS_LAMBDA_VALUES, DIFF_MAP_SIZE, FULL_DIFF_MAP_SIZE
 from gui.components.ui_factory import UIFactory
 from gui.windows.window_manager import WindowManager
 
@@ -14,9 +14,10 @@ from gui.windows.window_manager import WindowManager
 class QualityManager:
     """Менеджер качества для анализа и сравнения фильтров."""
     
-    def __init__(self, parent, window_manager):
+    def __init__(self, parent, window_manager, image_manager=None):
         self.parent = parent
         self.window_manager = window_manager
+        self.image_manager = image_manager
         self.ui_factory = UIFactory()
         self.quality_assessor = None
         self.quality_metrics = None
@@ -42,29 +43,11 @@ class QualityManager:
         buttons_frame = ttk.Frame(parent, style='Modern.TFrame')
         buttons_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Кнопка анализа качества
-        self.analyze_quality_btn = self.ui_factory.create_button(
-            buttons_frame, "📊 Анализ качества", self.analyze_quality
-        )
-        self.analyze_quality_btn.pack(side=tk.LEFT, padx=(0, 5))
-        
         # Кнопка показа карты разности
         self.show_diff_map_btn = self.ui_factory.create_button(
             buttons_frame, "🗺️ Карта разности", self.show_difference_map
         )
         self.show_diff_map_btn.pack(side=tk.LEFT, padx=5)
-        
-        # Кнопка сравнения фильтров
-        self.compare_filters_btn = self.ui_factory.create_button(
-            buttons_frame, "⚖️ Сравнить фильтры", self.compare_filters
-        )
-        self.compare_filters_btn.pack(side=tk.LEFT, padx=5)
-        
-        # Кнопка сравнения фильтров резкости
-        self.compare_sharpness_btn = self.ui_factory.create_button(
-            buttons_frame, "🔍 Сравнить резкость", self.compare_sharpness_filters
-        )
-        self.compare_sharpness_btn.pack(side=tk.LEFT, padx=5)
     
     def _create_difference_map_area(self, parent):
         """Создает область отображения карты разности."""
@@ -142,18 +125,8 @@ class QualityManager:
             else:
                 diff_image = Image.fromarray(visualization, mode='L')
             
-            # Изменяем размер для отображения
-            from constants import DISPLAY_IMAGE_SIZE
-            display_image = diff_image.copy()
-            display_image.thumbnail(DISPLAY_IMAGE_SIZE, Image.Resampling.LANCZOS)
-            
-            # Конвертируем в PhotoImage
-            photo = ImageTk.PhotoImage(display_image)
-            
-            # Очищаем canvas и отображаем карту
-            self.diff_canvas.delete("all")
-            self.diff_canvas.create_image(200, 100, image=photo)
-            self.diff_canvas.image = photo  # Сохраняем ссылку
+            # Отрисовываем через WindowManager с учётом текущего размера canvas
+            self.window_manager.display_image_in_canvas(self.diff_canvas, diff_image, size=DIFF_MAP_SIZE)
             
         except Exception as e:
             self.window_manager.show_error("Ошибка", f"Не удалось отобразить карту разности: {e}")
@@ -161,8 +134,28 @@ class QualityManager:
     def show_difference_map(self):
         """Показывает карту разности в отдельном окне."""
         if self.difference_map is None:
-            self.window_manager.show_warning("Предупреждение", "Сначала выполните анализ качества")
-            return
+            # Попытаемся автоматически вычислить карту, если есть исходное и обработанное
+            try:
+                from image_processing.quality_assessment import QualityAssessment
+                self.quality_assessor = self.quality_assessor or QualityAssessment()
+                import numpy as np
+                orig = getattr(self.image_manager, 'original_image', None) if self.image_manager else None
+                proc = getattr(self.image_manager, 'processed_image', None) if self.image_manager else None
+                if orig is not None and proc is not None:
+                    original_array = np.array(orig)
+                    processed_array = np.array(proc)
+                    self.difference_map = self.quality_assessor.compute_absolute_difference_map(
+                        original_array, processed_array
+                    )
+                    self.quality_metrics = self.quality_assessor.compute_quality_metrics(
+                        original_array, processed_array
+                    )
+                else:
+                    self.window_manager.show_warning("Предупреждение", "Сначала загрузите изображение и примените преобразование")
+                    return
+            except Exception:
+                self.window_manager.show_warning("Предупреждение", "Не удалось вычислить карту разности")
+                return
         
         try:
             # Создаем новое окно
@@ -180,8 +173,8 @@ class QualityManager:
             else:
                 diff_image = Image.fromarray(visualization, mode='L')
             
-            # Отображаем карту
-            self.window_manager.display_image_in_canvas(canvas, diff_image)
+            # Отображаем карту (используем увеличенный размер для отдельного окна)
+            self.window_manager.display_image_in_canvas(canvas, diff_image, size=FULL_DIFF_MAP_SIZE)
             
             # Добавляем информацию
             info_text = f"Средняя разность: {self.quality_metrics['mean_difference']:.2f}\n"
@@ -218,12 +211,12 @@ class QualityManager:
             
             # Чекбоксы для выбора фильтров
             self.selected_filters = self.ui_factory.create_filter_checkboxes(
-                selection_frame, AVAILABLE_FILTERS
+                selection_frame.frame, AVAILABLE_FILTERS
             )
             
             # Кнопка запуска сравнения
             compare_btn = self.ui_factory.create_button(
-                selection_frame, 
+                selection_frame.frame, 
                 "🔄 Сравнить выбранные фильтры", 
                 lambda: self.run_filter_comparison(compare_window, original_image, update_info_callback)
             )
@@ -341,7 +334,7 @@ class QualityManager:
             
             # Кнопка запуска сравнения
             compare_btn = self.ui_factory.create_button(
-                selection_frame, 
+                selection_frame.frame, 
                 "🔍 Сравнить фильтры резкости", 
                 lambda: self.run_sharpness_comparison(sharpness_window, original_image, update_info_callback)
             )

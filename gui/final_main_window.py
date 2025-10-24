@@ -54,8 +54,8 @@ class FinalMainWindow:
         # Основная рабочая область
         self.create_workspace(main_container)
         
-        # Создаем менеджер качества
-        self.quality_manager = QualityManager(main_container, self.window_manager)
+        # Создаем менеджер качества (передаем image_manager для авто-расчета карты)
+        self.quality_manager = QualityManager(main_container, self.window_manager, self.image_manager)
         
         # Панель оценки качества
         self.create_quality_panel(main_container)
@@ -80,6 +80,10 @@ class FinalMainWindow:
             self.quality_manager,
             self.update_info
         )
+
+        # Инициализируем UI параметров и описание для текущего выбранного преобразования
+        current_transform = self.transform_combo.get()
+        self.event_manager.on_transform_change(current_transform, self.desc_text)
     
     def create_quality_panel(self, parent):
         """Создает панель оценки качества."""
@@ -173,6 +177,10 @@ class FinalMainWindow:
     def create_quality_panel(self, parent):
         """Создает панель оценки качества."""
         self.quality_panel = self.quality_manager.create_quality_panel(parent)
+        # Перепривязываем команды кнопок к методам окна,
+        # чтобы не требовались позиционные аргументы
+        if hasattr(self.quality_manager, 'show_diff_map_btn'):
+            self.quality_manager.show_diff_map_btn.configure(command=self.show_difference_map)
     
     def create_bottom_panel(self, parent):
         """Создает нижнюю панель."""

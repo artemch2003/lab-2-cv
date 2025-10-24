@@ -134,6 +134,14 @@ class BaseButton:
         """Размещает кнопку в сетке."""
         self.button.grid(**kwargs)
 
+    def configure(self, **kwargs):
+        """Проксирует настройку параметров кнопки (например, command)."""
+        self.button.configure(**kwargs)
+
+    def pack_forget(self):
+        """Скрывает кнопку (pack_forget)."""
+        self.button.pack_forget()
+
 
 class BaseLabel:
     """Базовый класс для меток."""
@@ -151,6 +159,10 @@ class BaseLabel:
         
     def pack_forget(self):
         """Скрывает метку."""
+        self.label.pack_forget()
+
+    def pack_forget(self):
+        """Скрывает метку (pack_forget)."""
         self.label.pack_forget()
 
 
@@ -175,6 +187,10 @@ class BaseEntry:
         
     def pack_forget(self):
         """Скрывает поле ввода."""
+        self.entry.pack_forget()
+
+    def pack_forget(self):
+        """Скрывает поле ввода (pack_forget)."""
         self.entry.pack_forget()
 
 
@@ -215,6 +231,10 @@ class BaseCombobox:
         """Привязывает обработчик события."""
         self.combobox.bind(event, handler)
 
+    def pack_forget(self):
+        """Скрывает комбобокс (pack_forget)."""
+        self.combobox.pack_forget()
+
 
 class BaseText:
     """Базовый класс для текстовых областей."""
@@ -245,6 +265,10 @@ class BaseText:
     def configure(self, **kwargs):
         """Настраивает виджет."""
         self.text_widget.configure(**kwargs)
+
+    def pack_forget(self):
+        """Скрывает текстовую область (pack_forget)."""
+        self.text_widget.pack_forget()
 
 
 class BaseLabelFrame:

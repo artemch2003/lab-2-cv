@@ -78,12 +78,13 @@ class WindowManager:
         # Конвертируем в PhotoImage
         photo = ImageTk.PhotoImage(display_image)
         
-        # Очищаем canvas и отображаем изображение
+        # Очищаем canvas и отображаем изображение (якорь в левом верхнем углу)
         canvas.delete("all")
         canvas.create_image(
-            canvas.winfo_width() // 2, 
-            canvas.winfo_height() // 2, 
-            image=photo
+            0,
+            0,
+            image=photo,
+            anchor='nw'
         )
         canvas.image = photo  # Сохраняем ссылку
         
