@@ -154,8 +154,9 @@ class MainController:
         """Применяет степенное преобразование."""
         mode = parameters.get('mode', 'Автоматически')
         gamma = parameters.get('gamma', 1.0) if mode == "Вручную" else 1.0
+        c = parameters.get('c') if mode == "Вручную" else None
         
-        return self.image_processor.apply_power_transform(gamma)
+        return self.image_processor.apply_power_transform(gamma, c)
     
     def _apply_binary_transform(self, parameters: Dict[str, Any]) -> bool:
         """Применяет бинарное преобразование."""

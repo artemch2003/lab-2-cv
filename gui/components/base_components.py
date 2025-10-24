@@ -148,6 +148,10 @@ class BaseLabel:
     def grid(self, **kwargs):
         """Размещает метку в сетке."""
         self.label.grid(**kwargs)
+        
+    def pack_forget(self):
+        """Скрывает метку."""
+        self.label.pack_forget()
 
 
 class BaseEntry:
@@ -168,6 +172,10 @@ class BaseEntry:
     def grid(self, **kwargs):
         """Размещает поле ввода в сетке."""
         self.entry.grid(**kwargs)
+        
+    def pack_forget(self):
+        """Скрывает поле ввода."""
+        self.entry.pack_forget()
 
 
 class BaseCombobox:
@@ -190,6 +198,10 @@ class BaseCombobox:
     def grid(self, **kwargs):
         """Размещает выпадающий список в сетке."""
         self.combobox.grid(**kwargs)
+        
+    def pack_forget(self):
+        """Скрывает выпадающий список."""
+        self.combobox.pack_forget()
         
     def get(self):
         """Возвращает выбранное значение."""

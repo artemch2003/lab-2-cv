@@ -51,6 +51,8 @@ class ParameterManager:
         self.elements['mode_combo'] = self.ui_factory.create_mode_combobox(
             self.parent, self.variables['mode']
         )
+        # Привязываем событие изменения режима
+        self.elements['mode_combo'].bind('<<ComboboxSelected>>', lambda e: self._on_mode_change())
         
         # Гамма
         self.elements['gamma_label'] = self.ui_factory.create_label(
@@ -75,6 +77,8 @@ class ParameterManager:
         self.elements['threshold_mode_combo'] = self.ui_factory.create_threshold_mode_combobox(
             self.parent, self.variables['threshold_mode']
         )
+        # Привязываем событие изменения режима порога
+        self.elements['threshold_mode_combo'].bind('<<ComboboxSelected>>', lambda e: self._on_threshold_mode_change())
         
         # Порог
         self.elements['threshold_label'] = self.ui_factory.create_label(
@@ -91,6 +95,8 @@ class ParameterManager:
         self.elements['preset_combo'] = self.ui_factory.create_preset_combobox(
             self.parent, self.variables['preset']
         )
+        # Привязываем событие изменения заготовки
+        self.elements['preset_combo'].bind('<<ComboboxSelected>>', lambda e: self.on_preset_change())
         
         # Минимальная яркость
         self.elements['min_brightness_label'] = self.ui_factory.create_label(
@@ -115,6 +121,8 @@ class ParameterManager:
         self.elements['outside_mode_combo'] = self.ui_factory.create_outside_mode_combobox(
             self.parent, self.variables['outside_mode']
         )
+        # Привязываем событие изменения режима вне диапазона
+        self.elements['outside_mode_combo'].bind('<<ComboboxSelected>>', lambda e: self._on_outside_mode_change())
         
         # Константа
         self.elements['constant_value_label'] = self.ui_factory.create_label(
@@ -133,6 +141,7 @@ class ParameterManager:
     def show_elements_for_transform(self, transform_type):
         """Показывает элементы для указанного типа преобразования."""
         self.hide_all_elements()
+        self.set_current_transform_type(transform_type)
         
         if transform_type == "Логарифмическое":
             self._show_logarithmic_elements()
@@ -183,6 +192,8 @@ class ParameterManager:
             elif transform_type == "Степенное":
                 self.elements['gamma_label'].pack(anchor=tk.W, pady=(5, 0))
                 self.elements['gamma_entry'].pack(anchor=tk.W, pady=(0, 5))
+                self.elements['c_label'].pack(anchor=tk.W, pady=(5, 0))
+                self.elements['c_entry'].pack(anchor=tk.W, pady=(0, 5))
         else:
             self.elements['gamma_label'].pack_forget()
             self.elements['gamma_entry'].pack_forget()
@@ -218,7 +229,11 @@ class ParameterManager:
     def _get_current_transform_type(self):
         """Возвращает текущий тип преобразования."""
         # Это должно быть передано из главного окна
-        return "Логарифмическое"  # По умолчанию
+        return getattr(self, '_current_transform_type', "Логарифмическое")
+    
+    def set_current_transform_type(self, transform_type):
+        """Устанавливает текущий тип преобразования."""
+        self._current_transform_type = transform_type
     
     def on_preset_change(self):
         """Обрабатывает изменение заготовки порога."""
@@ -245,8 +260,13 @@ class ParameterManager:
             if mode == "Вручную":
                 try:
                     params['gamma'] = float(self.variables['gamma'].get())
+                    # Для степенного преобразования также нужен коэффициент c
+                    params['c'] = float(self.variables['c_coefficient'].get())
                 except ValueError:
-                    raise ValueError("Неверное значение гаммы")
+                    raise ValueError("Неверное значение гаммы или коэффициента c")
+            else:  # Автоматический режим
+                # В автоматическом режиме используем гамму по умолчанию
+                params['gamma'] = 1.0
         
         elif transform_type == "Бинарное":
             mode = self.variables['threshold_mode'].get()
@@ -288,6 +308,10 @@ class ParameterManager:
             info_lines.append(f"Режим: {mode}")
             if mode == "Вручную" and 'gamma' in params:
                 info_lines.append(f"Гамма: {params['gamma']}")
+                if 'c' in params:
+                    info_lines.append(f"Коэффициент c: {params['c']}")
+            elif mode == "Автоматически" and 'gamma' in params:
+                info_lines.append(f"Гамма: {params['gamma']} (автоматически)")
         
         elif transform_type == "Бинарное":
             mode = params.get('threshold_mode', 'Произвольный')
