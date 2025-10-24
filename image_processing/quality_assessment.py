@@ -28,20 +28,33 @@ class QualityAssessment:
             np.ndarray: Карта абсолютной разности
         """
         try:
-            # Проверяем, что изображения имеют одинаковые размеры
-            if original.shape != processed.shape:
-                raise ValueError("Изображения должны иметь одинаковые размеры")
-            
-            # Вычисляем абсолютную разность
-            if len(original.shape) == 3:
-                # Цветное изображение - вычисляем разность для каждого канала
-                diff_map = np.zeros_like(original, dtype=np.float64)
-                for channel in range(original.shape[2]):
-                    diff_map[:, :, channel] = np.abs(original[:, :, channel].astype(np.float64) - 
-                                                    processed[:, :, channel].astype(np.float64))
+            # Приводим изображения к одинаковым пространствам/размерам для корректного сравнения
+            orig = original
+            proc = processed
+
+            # Если размеры по ширине/высоте различаются — это критическая ошибка для сравнения
+            if orig.shape[0:2] != proc.shape[0:2]:
+                raise ValueError("Изображения должны иметь одинаковые размеры по ширине и высоте")
+
+            # Если различается число каналов (например, RGB vs L) — приводим к оттенкам серого
+            def to_gray(arr: np.ndarray) -> np.ndarray:
+                if len(arr.shape) == 3:
+                    # Преобразуем RGB в яркость (Y)
+                    return np.dot(arr[..., :3], [0.2989, 0.5870, 0.1140])
+                return arr.astype(np.float64)
+
+            if len(orig.shape) != len(proc.shape) or (len(orig.shape) == 3 and len(proc.shape) == 3 and orig.shape[2] != proc.shape[2]):
+                orig_f = to_gray(orig).astype(np.float64)
+                proc_f = to_gray(proc).astype(np.float64)
+                diff_map = np.abs(orig_f - proc_f)
             else:
-                # Оттенки серого
-                diff_map = np.abs(original.astype(np.float64) - processed.astype(np.float64))
+                # Число каналов совпадает
+                if len(orig.shape) == 3:
+                    diff_map = np.zeros_like(orig, dtype=np.float64)
+                    for channel in range(orig.shape[2]):
+                        diff_map[:, :, channel] = np.abs(orig[:, :, channel].astype(np.float64) - proc[:, :, channel].astype(np.float64))
+                else:
+                    diff_map = np.abs(orig.astype(np.float64) - proc.astype(np.float64))
             
             return diff_map.astype(np.uint8)
             

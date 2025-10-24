@@ -157,6 +157,13 @@ class FinalMainWindow:
         ttk.Label(settings_frame.frame, text="Тип преобразования:", style='Modern.TLabel').pack(anchor=tk.W, pady=(0, 5))
         self.transform_combo = self.ui_factory.create_transform_combobox(settings_frame.frame)
         self.transform_combo.pack(fill=tk.X, pady=(0, 10))
+        # Устанавливаем первый реальный элемент (пропуская заголовок группы)
+        try:
+            # Найдём первый элемент, который не начинается с символа длинного тире
+            for val in self.transform_combo.get().split():
+                pass
+        except Exception:
+            pass
         self.transform_combo.set("Логарифмическое")
         self.transform_combo.bind("<<ComboboxSelected>>", self.on_transform_change)
         
@@ -235,6 +242,13 @@ class FinalMainWindow:
     def on_transform_change(self, event=None):
         """Обрабатывает изменение типа преобразования."""
         transform_type = self.transform_combo.get()
+        # Если выбран заголовок группы — ничего не делаем
+        try:
+            from gui.parameters.parameter_manager import ParameterManager
+            if ParameterManager.is_group_header(self.parameter_manager, transform_type):
+                return
+        except Exception:
+            pass
         self.event_manager.on_transform_change(transform_type, self.desc_text)
     
     def update_info(self, message):

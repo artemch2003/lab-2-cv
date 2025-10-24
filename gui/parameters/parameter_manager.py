@@ -160,9 +160,14 @@ class ParameterManager:
     
     def _show_power_elements(self):
         """Показывает элементы для степенного преобразования."""
-        self.elements['mode_label'].pack(anchor=tk.W, pady=(5, 0))
-        self.elements['mode_combo'].pack(anchor=tk.W, pady=(0, 5))
-        self._on_mode_change()
+        # По заданию: для степенного вводится только γ, коэффициент c подбирается автоматически.
+        # Поля режима и c скрываем.
+        if hasattr(self.elements['mode_label'], 'pack_forget'):
+            self.elements['mode_label'].pack_forget()
+        if hasattr(self.elements['mode_combo'], 'pack_forget'):
+            self.elements['mode_combo'].pack_forget()
+        self.elements['gamma_label'].pack(anchor=tk.W, pady=(5, 0))
+        self.elements['gamma_entry'].pack(anchor=tk.W, pady=(0, 5))
     
     def _show_binary_elements(self):
         """Показывает элементы для бинарного преобразования."""
@@ -185,16 +190,29 @@ class ParameterManager:
         mode = self.variables['mode'].get()
         transform_type = self._get_current_transform_type()
         
-        if mode == "Вручную":
-            if transform_type == "Логарифмическое":
+        if transform_type == "Логарифмическое":
+            # В ручном режиме показываем c, в автоматическом скрываем c
+            if mode == "Вручную":
                 self.elements['c_label'].pack(anchor=tk.W, pady=(5, 0))
                 self.elements['c_entry'].pack(anchor=tk.W, pady=(0, 5))
-            elif transform_type == "Степенное":
-                self.elements['gamma_label'].pack(anchor=tk.W, pady=(5, 0))
-                self.elements['gamma_entry'].pack(anchor=tk.W, pady=(0, 5))
-                self.elements['c_label'].pack(anchor=tk.W, pady=(5, 0))
-                self.elements['c_entry'].pack(anchor=tk.W, pady=(0, 5))
+            else:
+                self.elements['c_label'].pack_forget()
+                self.elements['c_entry'].pack_forget()
+            # Поля γ для логарифмического не используются
+            self.elements['gamma_label'].pack_forget()
+            self.elements['gamma_entry'].pack_forget()
+        elif transform_type == "Степенное":
+            # Для степенного всегда показываем γ; режим и c не используются
+            self.elements['gamma_label'].pack(anchor=tk.W, pady=(5, 0))
+            self.elements['gamma_entry'].pack(anchor=tk.W, pady=(0, 5))
+            self.elements['c_label'].pack_forget()
+            self.elements['c_entry'].pack_forget()
+            if hasattr(self.elements['mode_label'], 'pack_forget'):
+                self.elements['mode_label'].pack_forget()
+            if hasattr(self.elements['mode_combo'], 'pack_forget'):
+                self.elements['mode_combo'].pack_forget()
         else:
+            # Для остальных типов скрываем специфичные поля
             self.elements['gamma_label'].pack_forget()
             self.elements['gamma_entry'].pack_forget()
             self.elements['c_label'].pack_forget()
@@ -240,6 +258,10 @@ class ParameterManager:
         preset = self.variables['preset'].get()
         threshold = THRESHOLD_PRESETS.get(preset, 128)
         self.variables['threshold'].set(str(threshold))
+
+    def is_group_header(self, value: str) -> bool:
+        """Возвращает True, если элемент в комбобоксе — заголовок группы."""
+        return isinstance(value, str) and value.strip().startswith("—")
     
     def get_parameters(self, transform_type):
         """Возвращает параметры для указанного типа преобразования."""
@@ -255,18 +277,11 @@ class ParameterManager:
                     raise ValueError("Неверное значение коэффициента c")
         
         elif transform_type == "Степенное":
-            mode = self.variables['mode'].get()
-            params['mode'] = mode
-            if mode == "Вручную":
-                try:
-                    params['gamma'] = float(self.variables['gamma'].get())
-                    # Для степенного преобразования также нужен коэффициент c
-                    params['c'] = float(self.variables['c_coefficient'].get())
-                except ValueError:
-                    raise ValueError("Неверное значение гаммы или коэффициента c")
-            else:  # Автоматический режим
-                # В автоматическом режиме используем гамму по умолчанию
-                params['gamma'] = 1.0
+            # Вводится только γ; коэффициент c подбирается автоматически в алгоритме
+            try:
+                params['gamma'] = float(self.variables['gamma'].get())
+            except ValueError:
+                raise ValueError("Неверное значение гаммы")
         
         elif transform_type == "Бинарное":
             mode = self.variables['threshold_mode'].get()
@@ -304,14 +319,8 @@ class ParameterManager:
                 info_lines.append(f"Коэффициент c: {params['c']}")
         
         elif transform_type == "Степенное":
-            mode = params.get('mode', 'Автоматически')
-            info_lines.append(f"Режим: {mode}")
-            if mode == "Вручную" and 'gamma' in params:
+            if 'gamma' in params:
                 info_lines.append(f"Гамма: {params['gamma']}")
-                if 'c' in params:
-                    info_lines.append(f"Коэффициент c: {params['c']}")
-            elif mode == "Автоматически" and 'gamma' in params:
-                info_lines.append(f"Гамма: {params['gamma']} (автоматически)")
         
         elif transform_type == "Бинарное":
             mode = params.get('threshold_mode', 'Произвольный')

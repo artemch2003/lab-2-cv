@@ -33,9 +33,6 @@ class QualityManager:
         # Кнопки управления качеством
         self._create_quality_buttons(quality_frame.frame)
         
-        # Область отображения карты разности
-        self._create_difference_map_area(quality_frame.frame)
-        
         return quality_frame
     
     def _create_quality_buttons(self, parent):
@@ -49,27 +46,7 @@ class QualityManager:
         )
         self.show_diff_map_btn.pack(side=tk.LEFT, padx=5)
     
-    def _create_difference_map_area(self, parent):
-        """Создает область отображения карты разности."""
-        diff_frame = self.ui_factory.create_label_frame(
-            parent, "Карта абсолютной разности", padding="5"
-        )
-        diff_frame.pack(fill=tk.BOTH, expand=True)
-        
-        self.diff_canvas = tk.Canvas(
-            diff_frame.frame, 
-            bg="#1e1e1e", 
-            highlightthickness=0, 
-            height=200
-        )
-        self.diff_canvas.pack(fill=tk.BOTH, expand=True)
-        self.diff_canvas.create_text(
-            200, 100, 
-            text="Нажмите 'Анализ качества' для просмотра карты разности", 
-            fill="#666666", 
-            font=("Segoe UI", 10), 
-            justify=tk.CENTER
-        )
+    # Удалена inline-область карты разности; используем отдельное окно (show_difference_map)
     
     def analyze_quality(self, original_image, processed_image, update_info_callback):
         """Анализирует качество обработки изображения."""
@@ -133,29 +110,28 @@ class QualityManager:
     
     def show_difference_map(self):
         """Показывает карту разности в отдельном окне."""
-        if self.difference_map is None:
-            # Попытаемся автоматически вычислить карту, если есть исходное и обработанное
-            try:
-                from image_processing.quality_assessment import QualityAssessment
-                self.quality_assessor = self.quality_assessor or QualityAssessment()
-                import numpy as np
-                orig = getattr(self.image_manager, 'original_image', None) if self.image_manager else None
-                proc = getattr(self.image_manager, 'processed_image', None) if self.image_manager else None
-                if orig is not None and proc is not None:
-                    original_array = np.array(orig)
-                    processed_array = np.array(proc)
-                    self.difference_map = self.quality_assessor.compute_absolute_difference_map(
-                        original_array, processed_array
-                    )
-                    self.quality_metrics = self.quality_assessor.compute_quality_metrics(
-                        original_array, processed_array
-                    )
-                else:
-                    self.window_manager.show_warning("Предупреждение", "Сначала загрузите изображение и примените преобразование")
-                    return
-            except Exception:
-                self.window_manager.show_warning("Предупреждение", "Не удалось вычислить карту разности")
+        # Всегда пересчитываем карту разности из текущего состояния изображений
+        try:
+            from image_processing.quality_assessment import QualityAssessment
+            self.quality_assessor = self.quality_assessor or QualityAssessment()
+            import numpy as np
+            orig = getattr(self.image_manager, 'original_image', None) if self.image_manager else None
+            proc = getattr(self.image_manager, 'processed_image', None) if self.image_manager else None
+            if orig is not None and proc is not None:
+                original_array = np.array(orig)
+                processed_array = np.array(proc)
+                self.difference_map = self.quality_assessor.compute_absolute_difference_map(
+                    original_array, processed_array
+                )
+                self.quality_metrics = self.quality_assessor.compute_quality_metrics(
+                    original_array, processed_array
+                )
+            else:
+                self.window_manager.show_warning("Предупреждение", "Сначала загрузите изображение и примените преобразование")
                 return
+        except Exception:
+            self.window_manager.show_warning("Предупреждение", "Не удалось вычислить карту разности")
+            return
         
         try:
             # Создаем новое окно

@@ -78,8 +78,13 @@ class ImageManager:
             # Создаем преобразование
             transform = TransformFactory.create_transform(transform_type)
             
+            # Определяем входное изображение:
+            # если уже есть обработанное — применяем к нему (цепочка преобразований),
+            # иначе — к исходному
+            source_image = self.processed_image if self.processed_image is not None else self.original_image
+            
             # Конвертируем изображение в numpy array
-            image_array = np.array(self.original_image)
+            image_array = np.array(source_image)
             
             # Применяем преобразование
             processed_array = transform.apply(image_array, **params)

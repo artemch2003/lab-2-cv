@@ -11,7 +11,8 @@ from .base_components import (
 )
 from constants import (
     TRANSFORM_DESCRIPTIONS, THRESHOLD_PRESETS, 
-    SHARPNESS_KERNEL_SIZES, SHARPNESS_LAMBDA_VALUES
+    SHARPNESS_KERNEL_SIZES, SHARPNESS_LAMBDA_VALUES,
+    TRANSFORM_GROUPS
 )
 
 
@@ -66,7 +67,11 @@ class UIFactory:
     @staticmethod
     def create_transform_combobox(parent, textvariable=None):
         """Создает выпадающий список для типов преобразований."""
-        transform_values = list(TRANSFORM_DESCRIPTIONS.keys())
+        # Формируем значения с видимыми заголовками групп
+        transform_values = []
+        for group_title, items in TRANSFORM_GROUPS.items():
+            transform_values.append(group_title)
+            transform_values.extend(items)
         return BaseCombobox(parent, transform_values, textvariable)
     
     @staticmethod
